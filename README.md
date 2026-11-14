@@ -8,6 +8,29 @@ notifications (SMS). Its safety rules are executable: `tests/invariants/` holds 
 
 Design and decisions: `FOUNDATION_SPEC.md`. Milestones and the sync model: `IMPLEMENTATION_PLAN.md`. Releases: `CHANGELOG.md`. Clones: `CLONES.md`.
 
+## Holdout (build log #28)
+
+An experimentation platform on this foundation: PRD, decisions and phase plans are in `docs/holdout/`. Phase 1 is the pure
+engine (`src/lib/exp/`, Python oracle in `tools/oracle/`). Phase 2 adds:
+
+- **Experiments** at `/o/[org]/experiments`: variants with weights, a primary metric, guardrails, a minimum detectable
+  effect and a planned sample size computed up front (2× the fixed-horizon n for the sequential readout, D-16). Starting an
+  experiment freezes its design in the database (HO-01, D-18).
+- **Ingest**: `POST /api/v1/ingest` with an API key carrying the `ingest` scope (Settings → API keys):
+
+  ```json
+  { "events": [
+    { "type": "exposure", "id": "evt-1", "experiment": "checkout-button", "unitId": "user-42", "variant": "treatment" },
+    { "type": "conversion", "id": "evt-2", "event": "purchase", "unitId": "user-42", "value": 19.99 }
+  ] }
+  ```
+
+  Up to 500 events; each `id` makes retries safe. The answer is `{ accepted, duplicates, rejected: [{ index, code, detail }] }`.
+- **Assignment config**: `GET /api/v1/experiments` (`read` scope) returns running experiments' salt and variants in order, for
+  the same `assign()` the server checks exposures with.
+
+The readout page is Phase 3.
+
 ## Quickstart (about 10 minutes)
 
 Needs Node 22 and a local Postgres 17 you can create databases in (Homebrew `postgresql@17` works with no password).
