@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { dbSystem as db } from '@/core/db/system';
 import { assign, mulberry32 } from '@/lib/exp';
 import { createExperiment, startExperiment, updateDraft } from '@/lib/holdout/experiments';
@@ -12,6 +12,7 @@ import { conversionDesign, org } from './helpers';
 // tests write as the database owner with raw SQL, i.e. around the app, to prove the rule holds for any writer.
 
 beforeEach(resetAuthTables);
+afterAll(resetAuthTables); // leave no 'acme' org behind: e2e's demo seed expects to create it (NEXT.md e2e trap)
 
 const sql = (q: string, ...args: unknown[]) => db.$executeRawUnsafe(q, ...args);
 const HO01 = /HO-01/;

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { advanceClock, now } from '@/core/clock';
 import { dbSystem as db } from '@/core/db/system';
 import { assign, mulberry32, srmCheck } from '@/lib/exp';
@@ -13,6 +13,7 @@ beforeEach(async () => {
   await resetAuthTables();
   advanceClock(0);
 });
+afterAll(resetAuthTables); // leave no 'acme' org behind: e2e's demo seed expects to create it (NEXT.md e2e trap)
 
 const post = (key: string | null, body: unknown) => ingestRoute.POST(req('/ingest', key, { method: 'POST', body: typeof body === 'string' ? body : JSON.stringify(body) }));
 const send = async (key: string, events: unknown[]) => {

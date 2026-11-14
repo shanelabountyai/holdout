@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { dbSystem as db } from '@/core/db/system';
 import { Refused } from '@/core/errors';
 import { plannedUnitsPerArm, sampleSizeMeans, sampleSizeProportions } from '@/lib/exp';
@@ -11,6 +11,7 @@ import { actAs, addMember } from '../helpers/org';
 import { conversionDesign, meanDesign, org } from './helpers';
 
 beforeEach(resetAuthTables);
+afterAll(resetAuthTables); // leave no 'acme' org behind: e2e's demo seed expects to create it (NEXT.md e2e trap)
 
 describe('planned sample size, fixed up front (PRD; D-16 sequential at 2x)', () => {
   it('PRD conversion case 10% → 12%: 3 841 fixed-horizon, 7 682 planned per arm, 15 364 total at 50/50', () => {
