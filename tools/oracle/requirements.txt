@@ -1,0 +1,5 @@
+# Test-only (D-03). Pinned so the committed vectors reproduce exactly.
+numpy==2.5.3
+scipy==1.18.1
+statsmodels==0.15.0
+pytest==8.4.2

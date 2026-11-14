@@ -40,4 +40,4 @@ Phase 2 (schema, experiments UI, ingest) is not started.
 - D-10 sequential method = mSPRT with a normal mixture, τ² = MDE² by default (Johari et al.), monitoring starts
   at 100 units per arm.
 - D-11 hash = MurmurHash3 x86_32, 10 000 buckets.
-- D-12 CI gets an `oracle` job (Python 3.12, pinned scipy/statsmodels) next to the foundation jobs.
+- D-12 CI gets an `oracle` job (Python 3.13, pinned scipy/statsmodels) next to the foundation jobs.
