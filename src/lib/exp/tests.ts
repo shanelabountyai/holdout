@@ -1,5 +1,6 @@
 // Fixed-horizon comparisons of a treatment (B) against control (A). Effects are B − A. Two-sided throughout.
 import { normPpf, twoSidedP } from './normal';
+import { MIN_UNITS_PER_ARM } from './sequential';
 
 export interface FixedResult {
   /** B − A on the metric's own scale (absolute, not relative). */
@@ -49,10 +50,23 @@ export function diffProportions(a: Proportion, b: Proportion, alpha = 0.05): Fix
   return { diff, relLift: pa > 0 ? diff / pa : NaN, se, z, p: se0 > 0 ? twoSidedP(z) : 1, ciLow: diff - q * se, ciHigh: diff + q * se };
 }
 
-/** Difference in means from summary stats: large-sample z test on the Welch (unequal-variance) standard error (D-09). */
-export function diffMeans(a: MeanStats, b: MeanStats, alpha = 0.05): FixedResult {
+/** Returned instead of a result when an arm has fewer than `minUnitsPerArm` units: the readout says "not enough data". */
+export interface NotEnoughData {
+  notEnoughData: true;
+  minUnitsPerArm: number;
+  unitsA: number;
+  unitsB: number;
+}
+
+/**
+ * Difference in means from summary stats: large-sample z test on the Welch (unequal-variance) standard error (D-09).
+ * The z premise only holds at large n (A/A type I error is ~8.8% at 5/arm, ~6.6% at 10/arm), so below
+ * MIN_UNITS_PER_ARM in either arm this returns NotEnoughData instead of a result (D-15).
+ */
+export function diffMeans(a: MeanStats, b: MeanStats, alpha = 0.05): FixedResult | NotEnoughData {
   check(a.n > 1 && b.n > 1, 'each arm needs at least two units');
   check(a.variance >= 0 && b.variance >= 0, 'variance must be non-negative');
+  if (a.n < MIN_UNITS_PER_ARM || b.n < MIN_UNITS_PER_ARM) return { notEnoughData: true, minUnitsPerArm: MIN_UNITS_PER_ARM, unitsA: a.n, unitsB: b.n };
   const diff = b.mean - a.mean;
   const se = Math.sqrt(a.variance / a.n + b.variance / b.n);
   const z = se > 0 ? diff / se : 0;

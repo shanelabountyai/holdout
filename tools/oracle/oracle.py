@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[2]
 VECTORS = ROOT / "tools" / "oracle" / "vectors.json"
 GOLDEN = ROOT / "tests" / "exp" / "fixtures" / "assignment-golden.json"
 SEED = 28
+MIN_UNITS_PER_ARM = 100  # mirrors src/lib/exp/sequential.ts; diffMeans reports "not enough data" below it (D-15)
 
 
 # --- assignment -----------------------------------------------------------------------------------------------
@@ -101,6 +102,9 @@ def proportions_case(xa: int, na: int, xb: int, nb: int, alpha: float) -> dict:
 
 
 def means_case(a: dict, b: dict, alpha: float) -> dict:
+    if a["n"] < MIN_UNITS_PER_ARM or b["n"] < MIN_UNITS_PER_ARM:  # D-15: the z premise needs large n
+        return {"input": {"a": a, "b": b, "alpha": alpha},
+                "output": {"notEnoughData": True, "minUnitsPerArm": MIN_UNITS_PER_ARM, "unitsA": a["n"], "unitsB": b["n"]}}
     diff = b["mean"] - a["mean"]
     se = math.sqrt(a["variance"] / a["n"] + b["variance"] / b["n"])
     z = diff / se
@@ -164,7 +168,10 @@ def vectors() -> dict:
         prop.append(proportions_case(xa, na, xb, nb, 0.05))
 
     means = [means_case({"n": 1570, "mean": 10.0, "variance": 25.0}, {"n": 1570, "mean": 10.5, "variance": 25.0}, 0.05),
-             means_case({"n": 30, "mean": -2.5, "variance": 0.01}, {"n": 45, "mean": -2.49, "variance": 0.04}, 0.1)]
+             means_case({"n": 30, "mean": -2.5, "variance": 0.01}, {"n": 45, "mean": -2.49, "variance": 0.04}, 0.1),
+             means_case({"n": 5, "mean": 10.0, "variance": 25.0}, {"n": 5, "mean": 14.0, "variance": 25.0}, 0.05),
+             means_case({"n": 99, "mean": 10.0, "variance": 25.0}, {"n": 100, "mean": 11.0, "variance": 25.0}, 0.05),
+             means_case({"n": 100, "mean": 10.0, "variance": 25.0}, {"n": 100, "mean": 11.0, "variance": 25.0}, 0.05)]
     for _ in range(25):
         a = {"n": int(rng.integers(50, 100_000)), "mean": float(rng.normal(50, 20)), "variance": float(rng.uniform(0.5, 400))}
         b = {"n": int(rng.integers(50, 100_000)), "mean": a["mean"] + float(rng.normal(0, 1)), "variance": float(rng.uniform(0.5, 400))}

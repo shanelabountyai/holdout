@@ -130,8 +130,9 @@ export function simulate(cfg: SimConfig): SimReport {
       }
     }
     const final = m.kind === 'proportion' ? diffProportions({ conversions: a.sum, units: a.n }, { conversions: b.sum, units: b.n }, alpha) : diffMeans(stats(a), stats(b), alpha);
-    if (final.p < alpha) fixed++;
-    if (naiveHit || final.p < alpha) naive++;
+    const finalP = 'notEnoughData' in final ? 1 : final.p; // below MIN_UNITS_PER_ARM the readout has no result, so no rejection
+    if (finalP < alpha) fixed++;
+    if (naiveHit || finalP < alpha) naive++;
     if (state?.reject) {
       seq++;
       stopSum += stoppedAt;

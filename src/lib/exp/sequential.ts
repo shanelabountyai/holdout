@@ -24,7 +24,7 @@
 // τ² = mde² by default (D-10): the mixture puts its mass at effects of the size the experiment was planned to
 // detect, so power is spent where it matters.
 
-/** Below this many units in either arm the sequential readout says "not enough data" (D-10). */
+/** Below this many units in either arm the sequential readout (D-10) and `diffMeans` (D-15) say "not enough data". */
 export const MIN_UNITS_PER_ARM = 100;
 
 export interface SequentialLook {

@@ -34,6 +34,11 @@ describe('HO-02 oracle agreement (1e-9)', () => {
   it(`difference in means (${V.means.length} cases)`, () => {
     for (const [i, c] of V.means.entries()) {
       const r = diffMeans(c.input.a, c.input.b, c.input.alpha);
+      if (c.output.notEnoughData) {
+        expect(r, `means[${i}]`).toEqual(c.output); // D-15: both sides refuse below MIN_UNITS_PER_ARM
+        continue;
+      }
+      if ('notEnoughData' in r) throw new Error(`means[${i}]: ts says not enough data, oracle has a result`);
       for (const k of ['diff', 'se', 'z', 'p', 'ciLow', 'ciHigh'] as const) agree(r[k], c.output[k], `means[${i}].${k}`);
     }
   });

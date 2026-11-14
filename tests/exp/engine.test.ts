@@ -1,6 +1,6 @@
 // Unit tests for the engine's edges; numeric agreement lives in ho-02-oracle.test.ts.
 import { describe, expect, it } from 'vitest';
-import { csHalfWidth, diffMeans, diffProportions, logLambda, mulberry32, normCdf, normPpf, sequentialPath, srmCheck, summarize } from '@/lib/exp';
+import { csHalfWidth, diffMeans, diffProportions, logLambda, MIN_UNITS_PER_ARM, mulberry32, normCdf, normPpf, sequentialPath, srmCheck, summarize } from '@/lib/exp';
 
 describe('engine edges', () => {
   it('normal quantile inverts the CDF across the range', () => {
@@ -28,6 +28,18 @@ describe('engine edges', () => {
     expect(() => diffMeans({ n: 1, mean: 0, variance: 1 }, { n: 5, mean: 0, variance: 1 })).toThrow();
     expect(() => srmCheck([10, 10], [1])).toThrow();
     expect(() => srmCheck([10, 10], [1, 0])).toThrow();
+  });
+
+  it('diffMeans: below MIN_UNITS_PER_ARM in either arm it reports not enough data instead of a result (D-15)', () => {
+    // n = 5 per arm with a large observed gap: the z test would call this significant; the guard refuses.
+    expect(diffMeans({ n: 5, mean: 10, variance: 25 }, { n: 5, mean: 20, variance: 25 })).toEqual({ notEnoughData: true, minUnitsPerArm: MIN_UNITS_PER_ARM, unitsA: 5, unitsB: 5 });
+    expect(diffMeans({ n: 2, mean: 0, variance: 1 }, { n: 1000, mean: 0, variance: 1 })).toMatchObject({ notEnoughData: true });
+    expect(diffMeans({ n: 1000, mean: 0, variance: 1 }, { n: MIN_UNITS_PER_ARM - 1, mean: 0, variance: 1 })).toMatchObject({ notEnoughData: true, unitsB: 99 });
+    const r = diffMeans({ n: MIN_UNITS_PER_ARM, mean: 10, variance: 25 }, { n: MIN_UNITS_PER_ARM, mean: 11, variance: 25 });
+    if ('notEnoughData' in r) throw new Error('100 per arm must give a result');
+    expect(r.diff).toBe(1);
+    expect(r.se).toBeCloseTo(Math.sqrt(0.5), 14);
+    expect(MIN_UNITS_PER_ARM).toBe(100);
   });
 
   it('summarize matches a two-pass computation', () => {

@@ -1191,12 +1191,75 @@
     "alpha": 0.1
    },
    "output": {
-    "diff": 0.009999999999999787,
-    "se": 0.03496029493900505,
-    "z": 0.2860387767736716,
-    "p": 0.7748484221628826,
-    "ciLow": -0.047504567929715864,
-    "ciHigh": 0.06750456792971543
+    "notEnoughData": true,
+    "minUnitsPerArm": 100,
+    "unitsA": 30,
+    "unitsB": 45
+   }
+  },
+  {
+   "input": {
+    "a": {
+     "n": 5,
+     "mean": 10.0,
+     "variance": 25.0
+    },
+    "b": {
+     "n": 5,
+     "mean": 14.0,
+     "variance": 25.0
+    },
+    "alpha": 0.05
+   },
+   "output": {
+    "notEnoughData": true,
+    "minUnitsPerArm": 100,
+    "unitsA": 5,
+    "unitsB": 5
+   }
+  },
+  {
+   "input": {
+    "a": {
+     "n": 99,
+     "mean": 10.0,
+     "variance": 25.0
+    },
+    "b": {
+     "n": 100,
+     "mean": 11.0,
+     "variance": 25.0
+    },
+    "alpha": 0.05
+   },
+   "output": {
+    "notEnoughData": true,
+    "minUnitsPerArm": 100,
+    "unitsA": 99,
+    "unitsB": 100
+   }
+  },
+  {
+   "input": {
+    "a": {
+     "n": 100,
+     "mean": 10.0,
+     "variance": 25.0
+    },
+    "b": {
+     "n": 100,
+     "mean": 11.0,
+     "variance": 25.0
+    },
+    "alpha": 0.05
+   },
+   "output": {
+    "diff": 1.0,
+    "se": 0.7071067811865476,
+    "z": 1.414213562373095,
+    "p": 0.15729920705028516,
+    "ciLow": -0.38590382434967796,
+    "ciHigh": 2.385903824349678
    }
   },
   {
