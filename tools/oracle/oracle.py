@@ -23,6 +23,7 @@ VECTORS = ROOT / "tools" / "oracle" / "vectors.json"
 GOLDEN = ROOT / "tests" / "exp" / "fixtures" / "assignment-golden.json"
 SEED = 28
 MIN_UNITS_PER_ARM = 100  # mirrors src/lib/exp/sequential.ts; diffMeans reports "not enough data" below it (D-15)
+SEQUENTIAL_HORIZON_MULTIPLIER = 2  # mirrors src/lib/exp/tests.ts; sequential experiments plan at 2x the fixed n (D-16)
 
 
 # --- assignment -----------------------------------------------------------------------------------------------
@@ -146,6 +147,12 @@ def sample_size_mean(sd: float, mde: float, alpha: float, power: float) -> float
     return float(2 * sd**2 * z**2 / mde**2)
 
 
+def planned_units_per_arm(fixed_n: float, method: str) -> int:
+    """Fixed-horizon n rounded up; times SEQUENTIAL_HORIZON_MULTIPLIER for a sequential experiment (D-16)."""
+    n = math.ceil(fixed_n)
+    return n * SEQUENTIAL_HORIZON_MULTIPLIER if method == "sequential" else n
+
+
 def vectors() -> dict:
     rng = np.random.default_rng(SEED)
     zs = [-8.0, -6.0, -3.5, -2.5, -1.959963984540054, -1.0, -0.3, 0.0, 0.3, 1.0, 1.6448536269514722, 2.5, 3.5, 6.0, 8.0]
@@ -201,6 +208,8 @@ def vectors() -> dict:
                           for (b, m, a, pw) in [(0.1, 0.02, 0.05, 0.8), (0.03, 0.003, 0.05, 0.8), (0.5, -0.05, 0.01, 0.9), (0.2, 0.01, 0.1, 0.8)]],
           "means": [{"sd": s, "mde": m, "alpha": a, "power": pw, "v": sample_size_mean(s, m, a, pw)}
                     for (s, m, a, pw) in [(5.0, 0.5, 0.05, 0.8), (1.0, 0.05, 0.05, 0.9), (120.0, -10.0, 0.01, 0.8)]]}
+    for case in ss["proportions"] + ss["means"]:
+        case["planned"] = {m: planned_units_per_arm(case["v"], m) for m in ("fixed", "sequential")}
 
     return {"generator": "tools/oracle/oracle.py", "versions": {"python": sys.version.split()[0], "numpy": np.__version__, "scipy": __import__("scipy").__version__,
                                                                   "statsmodels": __import__("statsmodels").__version__},

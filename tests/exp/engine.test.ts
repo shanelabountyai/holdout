@@ -1,6 +1,6 @@
 // Unit tests for the engine's edges; numeric agreement lives in ho-02-oracle.test.ts.
 import { describe, expect, it } from 'vitest';
-import { csHalfWidth, diffMeans, diffProportions, logLambda, MIN_UNITS_PER_ARM, mulberry32, normCdf, normPpf, sequentialPath, sequentialStep, srmCheck, summarize } from '@/lib/exp';
+import { csHalfWidth, diffMeans, diffProportions, logLambda, MIN_UNITS_PER_ARM, mulberry32, normCdf, normPpf, plannedUnitsPerArm, sampleSizeMeans, sampleSizeProportions, SEQUENTIAL_HORIZON_MULTIPLIER, sequentialPath, sequentialStep, srmCheck, summarize } from '@/lib/exp';
 
 describe('engine edges', () => {
   it('normal quantile inverts the CDF across the range', () => {
@@ -82,6 +82,19 @@ describe('engine edges', () => {
     expect(first).toMatchObject({ p: 1, reject: false, ciLow: -Infinity, ciHigh: Infinity });
     const later = sequentialStep({ diff: 0.01, variance: 1e-5 }, 4e-4, 0.05, first);
     expect(sequentialStep({ diff: 0, variance: 0 }, 4e-4, 0.05, later)).toMatchObject({ p: later.p, ciLow: later.ciLow, ciHigh: later.ciHigh, reject: later.reject });
+  });
+
+  it('planned n: a sequential experiment plans at 2× the fixed-horizon n (D-16, resolves D-14)', () => {
+    expect(SEQUENTIAL_HORIZON_MULTIPLIER).toBe(2);
+    const prop = sampleSizeProportions(0.1, 0.02); // PRD conversion case: 3 840.8 → 3 841/arm fixed
+    const mean = sampleSizeMeans(5, 0.5); // PRD means case: 1 569.8 → 1 570/arm fixed
+    expect(plannedUnitsPerArm(prop, 'fixed')).toBe(3841);
+    expect(plannedUnitsPerArm(prop, 'sequential')).toBe(7682);
+    expect(plannedUnitsPerArm(mean, 'fixed')).toBe(1570);
+    expect(plannedUnitsPerArm(mean)).toBe(3140); // sequential is the default (D-02)
+    for (const n of [1, 99.2, 3840.85, 53210.3]) expect(plannedUnitsPerArm(n, 'sequential')).toBe(2 * plannedUnitsPerArm(n, 'fixed'));
+    expect(() => plannedUnitsPerArm(0)).toThrow(RangeError);
+    expect(() => plannedUnitsPerArm(Number.NaN)).toThrow(RangeError);
   });
 
   it('simulator PRNG is deterministic per seed', () => {

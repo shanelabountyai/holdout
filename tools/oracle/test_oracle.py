@@ -48,3 +48,15 @@ def test_murmur3_matches_mmh3_if_installed():
     for row in oracle.golden()["rows"][:300]:
         key = f"{row['salt']}:{row['unit']}"
         assert oracle.murmur3_32(key) == mmh3.hash(key, 0, signed=False)
+
+
+def test_sequential_plans_at_twice_the_fixed_horizon():
+    # D-16 (resolves D-14): sequential experiments plan at 2x the fixed-horizon n; TS mirrors this in tests.ts.
+    assert oracle.SEQUENTIAL_HORIZON_MULTIPLIER == 2
+    n = oracle.sample_size_prop(0.1, 0.02, 0.05, 0.8)
+    assert oracle.planned_units_per_arm(n, "fixed") == 3841
+    assert oracle.planned_units_per_arm(n, "sequential") == 7682
+    m = oracle.sample_size_mean(5.0, 0.5, 0.05, 0.8)
+    assert (oracle.planned_units_per_arm(m, "fixed"), oracle.planned_units_per_arm(m, "sequential")) == (1570, 3140)
+    for case in oracle.vectors()["sampleSize"]["proportions"] + oracle.vectors()["sampleSize"]["means"]:
+        assert case["planned"]["sequential"] == 2 * case["planned"]["fixed"]

@@ -110,3 +110,24 @@ export function sampleSizeMeans(sd: number, mde: number, alpha = 0.05, power = 0
   const z = normPpf(1 - alpha / 2) + normPpf(power);
   return (2 * sd * sd * z * z) / (mde * mde);
 }
+
+/**
+ * Sequential (mSPRT) experiments plan their horizon at this multiple of the fixed-horizon n (D-16, resolving D-14).
+ * At the fixed-horizon n the mSPRT has only ~49% (conversion) / ~39% (means) power; at 2× it has 86.7% / 84.4%
+ * (HO-03 simulator, 2 000 runs, seed 28). Change it here and in tools/oracle/oracle.py together.
+ */
+export const SEQUENTIAL_HORIZON_MULTIPLIER = 2;
+
+/** `sequential` is the primary readout (D-02); `fixed` is the fixed-horizon test shown alongside it. */
+export type AnalysisMethod = 'sequential' | 'fixed';
+
+/**
+ * Planned units per arm: the fixed-horizon n from `sampleSizeProportions` / `sampleSizeMeans`, rounded up, times
+ * SEQUENTIAL_HORIZON_MULTIPLIER for a sequential experiment. This is the horizon the readout's "no detectable
+ * effect at planned sample size" state is measured against (Phase 3).
+ */
+export function plannedUnitsPerArm(fixedHorizonN: number, method: AnalysisMethod = 'sequential'): number {
+  check(Number.isFinite(fixedHorizonN) && fixedHorizonN > 0, 'fixed-horizon n must be a positive number');
+  const n = Math.ceil(fixedHorizonN);
+  return method === 'sequential' ? n * SEQUENTIAL_HORIZON_MULTIPLIER : n;
+}

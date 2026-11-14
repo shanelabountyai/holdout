@@ -2,7 +2,7 @@
 // Vectors: tools/oracle/vectors.json, produced by tools/oracle/oracle.py (CI job `oracle` checks it is fresh).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { chi2Sf, diffMeans, diffProportions, gammaQ, lnGamma, normCdf, normPpf, sampleSizeMeans, sampleSizeProportions, sequentialPath, srmCheck, twoSidedP } from '@/lib/exp';
+import { chi2Sf, diffMeans, diffProportions, gammaQ, lnGamma, normCdf, normPpf, plannedUnitsPerArm, sampleSizeMeans, sampleSizeProportions, sequentialPath, srmCheck, twoSidedP } from '@/lib/exp';
 
 const V = JSON.parse(readFileSync('tools/oracle/vectors.json', 'utf8'));
 const TOL = 1e-9;
@@ -62,5 +62,13 @@ describe('HO-02 oracle agreement (1e-9)', () => {
   it('planned sample size', () => {
     for (const c of V.sampleSize.proportions) agree(sampleSizeProportions(c.baseline, c.mde, c.alpha, c.power), c.v, `n_prop(${c.baseline}, ${c.mde})`);
     for (const c of V.sampleSize.means) agree(sampleSizeMeans(c.sd, c.mde, c.alpha, c.power), c.v, `n_mean(${c.sd}, ${c.mde})`);
+  });
+  it('planned units per arm: fixed and sequential (2×, D-16) match the oracle exactly', () => {
+    const cases = [
+      ...V.sampleSize.proportions.map((c: { baseline: number; mde: number; alpha: number; power: number; planned: unknown }) => ({ n: sampleSizeProportions(c.baseline, c.mde, c.alpha, c.power), planned: c.planned })),
+      ...V.sampleSize.means.map((c: { sd: number; mde: number; alpha: number; power: number; planned: unknown }) => ({ n: sampleSizeMeans(c.sd, c.mde, c.alpha, c.power), planned: c.planned })),
+    ];
+    expect(cases.length).toBe(7);
+    for (const c of cases) expect({ fixed: plannedUnitsPerArm(c.n, 'fixed'), sequential: plannedUnitsPerArm(c.n, 'sequential') }).toEqual(c.planned);
   });
 });
