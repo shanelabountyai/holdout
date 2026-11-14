@@ -1,6 +1,6 @@
 // Unit tests for the engine's edges; numeric agreement lives in ho-02-oracle.test.ts.
 import { describe, expect, it } from 'vitest';
-import { csHalfWidth, diffMeans, diffProportions, logLambda, MIN_UNITS_PER_ARM, mulberry32, normCdf, normPpf, sequentialPath, srmCheck, summarize } from '@/lib/exp';
+import { csHalfWidth, diffMeans, diffProportions, logLambda, MIN_UNITS_PER_ARM, mulberry32, normCdf, normPpf, sequentialPath, sequentialStep, srmCheck, summarize } from '@/lib/exp';
 
 describe('engine edges', () => {
   it('normal quantile inverts the CDF across the range', () => {
@@ -75,6 +75,13 @@ describe('engine edges', () => {
       expect(path[t]!.ciHigh - path[t]!.ciLow).toBeLessThanOrEqual(path[t - 1]!.ciHigh - path[t - 1]!.ciLow + 1e-15);
       if (path[t - 1]!.reject) expect(path[t]!.reject).toBe(true);
     }
+  });
+
+  it('sequential: a zero-variance look (no conversions yet) carries no evidence instead of throwing', () => {
+    const first = sequentialStep({ diff: 0, variance: 0 }, 4e-4);
+    expect(first).toMatchObject({ p: 1, reject: false, ciLow: -Infinity, ciHigh: Infinity });
+    const later = sequentialStep({ diff: 0.01, variance: 1e-5 }, 4e-4, 0.05, first);
+    expect(sequentialStep({ diff: 0, variance: 0 }, 4e-4, 0.05, later)).toMatchObject({ p: later.p, ciLow: later.ciLow, ciHigh: later.ciHigh, reject: later.reject });
   });
 
   it('simulator PRNG is deterministic per seed', () => {

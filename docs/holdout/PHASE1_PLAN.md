@@ -14,7 +14,7 @@ pure TypeScript functions plus a test-only Python oracle. Written before any eng
 | `src/lib/exp/sequential.ts` | Always-valid inference: Gaussian-mixture SPRT (mSPRT) on the difference estimate, always-valid p-value (running min of 1/Λ) and the matching confidence sequence. References cited in the file header. |
 | `src/lib/exp/simulator.ts` | Seeded PRNG (mulberry32), synthetic units with known true effect (Bernoulli or normal), assignment through `hash.ts`, peeks every N units; reports fixed-horizon and sequential rejection rates. |
 | `src/lib/exp/index.ts` | Re-exports. |
-| `tools/oracle/` | Python, test-only (D-03): `oracle.py` recomputes every vector with scipy/statsmodels (+ a pure-Python murmur3 for assignment); `cases.json` holds the inputs; `vectors.json` the oracle's outputs, committed. `test_oracle.py` regenerates in memory and fails if the committed file is stale. |
+| `tools/oracle/` | Python, test-only (D-03): `oracle.py` builds the inputs (seeded) and recomputes every output with scipy/statsmodels (+ a pure-Python murmur3 for assignment); `vectors.json` holds inputs and outputs, committed. The sequential and sample-size formulas are re-implemented in numpy with scipy's normal functions, so for those HO-02 checks the arithmetic, not the formula. `test_oracle.py` regenerates in memory and fails if the committed file is stale. |
 | `tests/exp/*.test.ts` | vitest: HO-01, HO-02 (oracle agreement), HO-03 (A/A false-positive rate), power report, unit tests. |
 
 ## Invariants in this phase

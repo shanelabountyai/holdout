@@ -59,6 +59,10 @@ export function csHalfWidth(variance: number, tau2: number, alpha = 0.05): numbe
 
 /** One look, given the running state of the previous ones (p and the running CS intersection). */
 export function sequentialStep(look: SequentialLook, tau2: number, alpha = 0.05, prev?: SequentialResult): SequentialResult {
+  // A zero plug-in variance (e.g. no conversions in either arm yet) carries no evidence: keep the previous state.
+  if (!(look.variance > 0)) {
+    return { logLambda: 0, pLook: 1, p: prev?.p ?? 1, ciLow: prev?.ciLow ?? -Infinity, ciHigh: prev?.ciHigh ?? Infinity, reject: prev?.reject ?? false };
+  }
   const ll = logLambda(look.diff, look.variance, tau2);
   const pLook = Math.min(1, Math.exp(-ll));
   const p = prev ? Math.min(prev.p, pLook) : pLook;
