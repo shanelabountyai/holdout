@@ -203,13 +203,13 @@ describe('guardrails (D-31)', () => {
     const r = analyze(g, [look([arm(8000, 800, { refund: 160 }), arm(8000, 1000, { refund: 163 })])]);
     expect(r.decision.state).toBe('ship');
     expect(r.guardrails![0]!.comparisons[0]!.moved).toBeNull();
-    expect(r.guardrails![0]!.tau2).toBeCloseTo((0.1 * 0.02) ** 2, 15);
+    expect(r.guardrails![0]!.tau2).toBeCloseTo((0.25 * 0.02) ** 2, 15);
   });
 
   it('τ² is fixed at the first eligible look where control has a level, and waits while control is 0', () => {
     const looks = [look([arm(200, 20, { refund: 0 }), arm(200, 22, { refund: 0 })]), look([arm(1000, 100, { refund: 50 }), arm(1000, 101, { refund: 52 })]), look([arm(3000, 300, { refund: 300 }), arm(3000, 310, { refund: 290 })])];
     const r = analyze(g, looks);
-    expect(r.guardrails![0]!.tau2).toBeCloseTo((0.1 * 0.05) ** 2, 15);
+    expect(r.guardrails![0]!.tau2).toBeCloseTo((0.25 * 0.05) ** 2, 15);
     expect(r.guardrails![0]!.comparisons[0]!.sequential.looks).toBe(2);
   });
 

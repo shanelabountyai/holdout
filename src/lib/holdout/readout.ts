@@ -142,12 +142,16 @@ const pv = (p: number) => (p < 0.0001 ? 'p < 0.0001' : `p = ${p.toFixed(4)}`);
 const ci = (kind: Kind, lo: number | null, hi: number | null) => `${lo === null ? '−∞' : pts(kind, lo)} to ${hi === null ? '+∞' : pts(kind, hi)}`;
 const count = (n: number) => n.toLocaleString('en-US');
 
-/** Guardrail τ: 10% of control's level at the first eligible look (or 10% of its standard deviation for a zero mean), D-31. */
+/**
+ * Guardrail τ (D-31): a guardrail has no MDE, so the mixture is centred on a 25% relative change of control's level at the
+ * first eligible look (25% of its standard deviation for a zero mean). Fixed from then on, so the test stays an mSPRT.
+ */
+export const GUARDRAIL_REL_TAU = 0.25;
 function guardrailTau(kind: Kind, event: string) {
   return (l: Look): number | null => {
     const a = stats(l.arms[0]!.units, l.arms[0]!.metrics[event]);
     const scale = Math.abs(a.mean) > 0 ? Math.abs(a.mean) : kind === 'mean' ? Math.sqrt(a.variance) : 0;
-    return scale > 0 ? (0.1 * scale) ** 2 : null;
+    return scale > 0 ? (GUARDRAIL_REL_TAU * scale) ** 2 : null;
   };
 }
 
