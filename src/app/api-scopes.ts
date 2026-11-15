@@ -4,6 +4,8 @@
 export const API_SCOPES = {
   read: { perMinute: 120, label: 'Read' },
   write: { perMinute: 20, label: 'Write' },
+  // Holdout D-17: POST /api/v1/ingest, up to 500 events a request.
+  ingest: { perMinute: 600, label: 'Ingest events' },
 } as const satisfies Record<string, { perMinute: number; label: string }>;
 
 export type ApiScope = keyof typeof API_SCOPES;

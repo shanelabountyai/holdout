@@ -48,6 +48,15 @@ jobs:
       - run: npm run typecheck
       - run: createdb holdout_test
       - run: npx prisma migrate deploy
+      # Holdout D-27: Holdout's migration SQL was hand-written (no schema engine in the build sandbox, D-06), so the migrated
+      # database must match prisma/schema for Holdout's tables. Any diff touching them fails; the diff is printed either way.
+      - name: Holdout schema drift (migrations vs prisma/schema)
+        run: |
+          out=$(npx prisma migrate diff --from-config-datasource --to-schema prisma/schema --script)
+          echo "$out"
+          if echo "$out" | grep -E '"(Experiment|Variant|Guardrail|Exposure|Conversion|ExperimentStatus|MetricKind)"'; then
+            echo "::error::Holdout tables differ from prisma/schema/holdout.prisma"; exit 1
+          fi
       - name: RLS enforce leg — app role, system URL
         if: matrix.rls == 'enforce'
         run: |

@@ -1,0 +1,119 @@
+// Holdout (PRD "Flags & experiments", "Events"; Phase 2). Clone-owned: this file and its migrations are additions, not
+// drift. Every table carries orgId, so `npm run rls:policies` scopes it (INV-30) and export-hooks.ts must list it (INV-34).
+
+enum ExperimentStatus {
+  draft
+  running
+  stopped
+}
+
+/// proportion: a unit converts if it fires the event at least once after its first exposure. mean: the sum of the
+/// event's `value` per exposed unit. Analysis is Phase 3; Phase 2 stores the definition and plans the sample size.
+enum MetricKind {
+  proportion
+  mean
+}
+
+/// One experiment. Everything that decides who sees what, or what counts as a win, is frozen once it leaves draft:
+/// key, salt, metric, baseline, MDE, alpha, power and the plan here, plus every Variant and Guardrail row. The trigger in
+/// migration 20261114000001_holdout_freeze enforces it in the database (HO-01, D-18); the app refuses first.
+model Experiment {
+  id                 String           @id @default(uuid()) @db.Uuid
+  orgId              String           @db.Uuid
+  org                Org              @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  key                String // what clients send at ingest; unique per org
+  name               String
+  description        String           @default("")
+  salt               String // random at creation; the hash input with the unit id (D-11). Not a secret
+  status             ExperimentStatus @default(draft)
+  metricEvent        String // primary metric: the conversion event name
+  metricKind         MetricKind
+  baselineRate       Float? // proportion: current conversion rate in (0, 1)
+  baselineMean       Float? // mean: current mean (shown, not used by the plan)
+  baselineSd         Float? // mean: standard deviation per unit
+  mde                Float // minimum detectable effect, absolute (rate points or metric units)
+  alpha              Float            @default(0.05)
+  power              Float            @default(0.8)
+  fixedUnitsPerArm   Int // fixed-horizon n per arm, rounded up (sampleSize*)
+  plannedUnitsPerArm Int // plannedUnitsPerArm(fixed, 'sequential'): 2x under D-16
+  plannedTotalUnits  Int // planned units per arm on the smallest arm, scaled to all traffic (D-20)
+  createdById        String           @db.Uuid // no FK, like ApiKey.createdById
+  createdAt          DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime         @updatedAt @db.Timestamptz(6)
+  startedAt          DateTime?        @db.Timestamptz(6)
+  stoppedAt          DateTime?        @db.Timestamptz(6) // Phase 3 (HO-05)
+
+  variants   Variant[]
+  guardrails Guardrail[]
+  exposures  Exposure[]
+
+  @@unique([orgId, key])
+  @@index([orgId])
+}
+
+/// A variant with its traffic weight in basis points. `assign()` walks variants by `position`, so weight and position
+/// together decide every unit's bucket: both frozen once the experiment starts (HO-01).
+model Variant {
+  id           String     @id @default(uuid()) @db.Uuid
+  orgId        String     @db.Uuid
+  experimentId String     @db.Uuid
+  experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  key          String
+  name         String
+  weight       Int // basis points; an experiment's weights sum to 10 000
+  position     Int // 0-based; the order assign() walks
+
+  exposures Exposure[]
+
+  @@unique([experimentId, key])
+  @@unique([experimentId, position])
+  @@index([orgId])
+}
+
+/// A guardrail metric (PRD "guardrail metrics"). Evaluated in Phase 3; frozen with the experiment.
+model Guardrail {
+  id           String     @id @default(uuid()) @db.Uuid
+  orgId        String     @db.Uuid
+  experimentId String     @db.Uuid
+  experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  event        String
+  kind         MetricKind
+  position     Int
+
+  @@unique([experimentId, event])
+  @@index([orgId])
+}
+
+/// A unit's first exposure to a running experiment (D-19). `variantId` is the server's assign(), never the client's.
+model Exposure {
+  id           String     @id @default(uuid()) @db.Uuid
+  orgId        String     @db.Uuid
+  experimentId String     @db.Uuid
+  experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  variantId    String     @db.Uuid
+  variant      Variant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  unitId       String
+  eventId      String // the client's id for this event
+  occurredAt   DateTime   @db.Timestamptz(6)
+  receivedAt   DateTime   @db.Timestamptz(6)
+
+  @@unique([experimentId, unitId])
+  @@index([orgId])
+  @@index([experimentId, variantId])
+}
+
+/// A metric event for a unit. Not tied to an experiment: Phase 3 joins conversions to exposures by unit and time.
+model Conversion {
+  id         String   @id @default(uuid()) @db.Uuid
+  orgId      String   @db.Uuid
+  org        Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  eventId    String // the client's id: a retried event is a duplicate, not a second conversion (D-17)
+  event      String
+  unitId     String
+  value      Float?
+  occurredAt DateTime @db.Timestamptz(6)
+  receivedAt DateTime @db.Timestamptz(6)
+
+  @@unique([orgId, eventId])
+  @@index([orgId, event, unitId])
+}
