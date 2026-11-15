@@ -3,9 +3,11 @@ import { notFound } from 'next/navigation';
 import { requireOrg } from '@/core/authz/guards';
 import { can } from '@/core/authz/permissions';
 import { ActionForm } from '@/core/ui/action-form';
-import { getExperiment } from '@/lib/holdout/experiments';
-import { editExperiment, launchExperiment, removeExperiment, renameExperimentAction } from '../actions';
+import { actorEmails } from '@/core/audit';
+import { experimentHistory, getExperiment, getReadout, MAX_STOP_REASON } from '@/lib/holdout/experiments';
+import { editExperiment, haltExperiment, launchExperiment, removeExperiment, renameExperimentAction } from '../actions';
 import { DesignFields, type DesignDefaults } from '../design-fields';
+import { ReadoutView } from '../readout-view';
 
 export const metadata = { title: 'Experiment' };
 
@@ -18,6 +20,8 @@ export default async function ExperimentPage({ params }: { params: Promise<{ org
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
   const x = await getExperiment(ctx, id);
+  const [ro, history] = await Promise.all([getReadout(ctx, id), experimentHistory(ctx, id)]);
+  const emails = await actorEmails(history.map((h) => h.actorUserId));
   const bind = <A extends unknown[], R>(fn: (slug: string, ...a: A) => R) => fn.bind(null, ctx.slug);
   const proportion = x.metricKind === 'proportion';
   const draft = x.status === 'draft';
@@ -40,8 +44,23 @@ export default async function ExperimentPage({ params }: { params: Promise<{ org
       <p>
         Key <code>{x.key}</code> · status <strong>{x.status}</strong>
         {x.startedAt && <> · started {x.startedAt.toISOString().slice(0, 16).replace('T', ' ')} UTC</>}
+        {x.stoppedAt && <> · stopped {x.stoppedAt.toISOString().slice(0, 16).replace('T', ' ')} UTC</>}
       </p>
       {x.description && <p>{x.description}</p>}
+      {ro && <ReadoutView r={ro.readout} stored={ro.stored} />}
+      {x.status === 'running' && can(ctx.role, 'org.update') && (
+        <>
+          <h2>Stop</h2>
+          <p>Stopping ends the experiment for good: no more exposures are accepted, and the readout above is recorded in the audit log as it stands at that moment (HO-05).</p>
+          <ActionForm action={bind(haltExperiment)}>
+            <input type="hidden" name="id" value={x.id} />
+            <p><label>Reason (optional) <textarea name="reason" maxLength={MAX_STOP_REASON} /></label></p>
+            <button type="submit">Stop experiment</button>
+          </ActionForm>
+        </>
+      )}
+      {x.status === 'running' && !can(ctx.role, 'org.update') && <p>An owner or admin stops the experiment.</p>}
+
       {!draft && <p>The design is frozen: variants, weights, their order, metrics and the plan cannot change while units are being assigned (HO-01).</p>}
 
       <h2>Planned sample size</h2>
@@ -77,7 +96,6 @@ export default async function ExperimentPage({ params }: { params: Promise<{ org
       <p>
         {n(x._count.exposures)} units exposed. Events received for <code>{x.metricEvent}</code>: {n(x.conversions[x.metricEvent] ?? 0)}
         {x.guardrails.map((g) => <span key={g.id}>; <code>{g.event}</code>: {n(x.conversions[g.event] ?? 0)}</span>)}.
-        {' '}Results and the readout arrive in Phase 3.
       </p>
 
       {draft && can(ctx.role, 'org.update') && (
@@ -117,6 +135,18 @@ export default async function ExperimentPage({ params }: { params: Promise<{ org
           </ActionForm>
         </>
       )}
+
+      <h2>History</h2>
+      {history.length ? (
+        <ul>
+          {history.map((h) => (
+            <li key={String(h.id)}>
+              {h.at.toISOString().slice(0, 16).replace('T', ' ')} UTC · <code>{h.action}</code> by {h.actorUserId ? (emails.get(h.actorUserId) ?? 'a deleted user') : 'the system'}
+              {h.action === 'experiment.stopped' && (h.data as { reason?: string } | null)?.reason ? <> — “{(h.data as { reason: string }).reason}”</> : null}
+            </li>
+          ))}
+        </ul>
+      ) : <p>No events.</p>}
     </main>
   );
 }
