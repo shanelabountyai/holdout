@@ -1,0 +1,861 @@
+{
+ "days": 14,
+ "visitorsPerDay": 1200,
+ "results": [
+  {
+   "key": "real-effect",
+   "label": "Real effect: 10% → 12%",
+   "plannedUnitsPerArm": 7682,
+   "sent": {
+    "exposures": 16800,
+    "conversions": 2256,
+    "accepted": 19056,
+    "duplicates": 0,
+    "rejected": 0
+   },
+   "days": [
+    {
+     "day": 1,
+     "units": [
+      579,
+      621
+     ],
+     "rates": [
+      0.108808,
+      0.109501
+     ],
+     "diff": 0.000693,
+     "seqP": 1,
+     "ciLow": -0.062502,
+     "ciHigh": 0.063887,
+     "fixedP": 0.969337,
+     "srmP": 0.225346,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 2,
+     "units": [
+      1186,
+      1214
+     ],
+     "rates": [
+      0.10371,
+      0.108731
+     ],
+     "diff": 0.005022,
+     "seqP": 1,
+     "ciLow": -0.034992,
+     "ciHigh": 0.045035,
+     "fixedP": 0.689801,
+     "srmP": 0.567628,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 3,
+     "units": [
+      1774,
+      1826
+     ],
+     "rates": [
+      0.100902,
+      0.11391
+     ],
+     "diff": 0.013008,
+     "seqP": 1,
+     "ciLow": -0.018888,
+     "ciHigh": 0.044905,
+     "fixedP": 0.207757,
+     "srmP": 0.386125,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 4,
+     "units": [
+      2398,
+      2402
+     ],
+     "rates": [
+      0.103837,
+      0.11657
+     ],
+     "diff": 0.012733,
+     "seqP": 1,
+     "ciLow": -0.014905,
+     "ciHigh": 0.04037,
+     "fixedP": 0.158971,
+     "srmP": 0.95396,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 5,
+     "units": [
+      3037,
+      2963
+     ],
+     "rates": [
+      0.109648,
+      0.118461
+     ],
+     "diff": 0.008813,
+     "seqP": 1,
+     "ciLow": -0.014905,
+     "ciHigh": 0.033799,
+     "fixedP": 0.282845,
+     "srmP": 0.339408,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 6,
+     "units": [
+      3629,
+      3571
+     ],
+     "rates": [
+      0.109121,
+      0.119294
+     ],
+     "diff": 0.010173,
+     "seqP": 1,
+     "ciLow": -0.012594,
+     "ciHigh": 0.03294,
+     "fixedP": 0.174721,
+     "srmP": 0.494268,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 7,
+     "units": [
+      4198,
+      4202
+     ],
+     "rates": [
+      0.108861,
+      0.118515
+     ],
+     "diff": 0.009654,
+     "seqP": 1,
+     "ciLow": -0.011368,
+     "ciHigh": 0.030675,
+     "fixedP": 0.163431,
+     "srmP": 0.965189,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 8,
+     "units": [
+      4747,
+      4853
+     ],
+     "rates": [
+      0.109964,
+      0.121574
+     ],
+     "diff": 0.01161,
+     "seqP": 0.771979,
+     "ciLow": -0.008213,
+     "ciHigh": 0.030675,
+     "fixedP": 0.075539,
+     "srmP": 0.279316,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 9,
+     "units": [
+      5321,
+      5479
+     ],
+     "rates": [
+      0.10919,
+      0.121007
+     ],
+     "diff": 0.011817,
+     "seqP": 0.626914,
+     "ciLow": -0.006844,
+     "ciHigh": 0.030479,
+     "fixedP": 0.054449,
+     "srmP": 0.128422,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 10,
+     "units": [
+      5943,
+      6057
+     ],
+     "rates": [
+      0.10769,
+      0.120357
+     ],
+     "diff": 0.012667,
+     "seqP": 0.398082,
+     "ciLow": -0.004991,
+     "ciHigh": 0.030325,
+     "fixedP": 0.029091,
+     "srmP": 0.298027,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 11,
+     "units": [
+      6552,
+      6648
+     ],
+     "rates": [
+      0.108211,
+      0.119585
+     ],
+     "diff": 0.011374,
+     "seqP": 0.398082,
+     "ciLow": -0.004991,
+     "ciHigh": 0.028231,
+     "fixedP": 0.039759,
+     "srmP": 0.403395,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 12,
+     "units": [
+      7181,
+      7219
+     ],
+     "rates": [
+      0.106949,
+      0.120515
+     ],
+     "diff": 0.013566,
+     "seqP": 0.180898,
+     "ciLow": -0.002591,
+     "ciHigh": 0.028231,
+     "fixedP": 0.010357,
+     "srmP": 0.751497,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 13,
+     "units": [
+      7779,
+      7821
+     ],
+     "rates": [
+      0.106955,
+      0.119934
+     ],
+     "diff": 0.012979,
+     "seqP": 0.180898,
+     "ciLow": -0.002556,
+     "ciHigh": 0.028231,
+     "fixedP": 0.0106,
+     "srmP": 0.736668,
+     "state": "no_effect",
+     "headline": "No detectable effect at planned sample size"
+    },
+    {
+     "day": 14,
+     "units": [
+      8371,
+      8429
+     ],
+     "rates": [
+      0.105722,
+      0.119943
+     ],
+     "diff": 0.014221,
+     "seqP": 0.076728,
+     "ciLow": -0.000741,
+     "ciHigh": 0.028231,
+     "fixedP": 0.003584,
+     "srmP": 0.654529,
+     "state": "no_effect",
+     "headline": "No detectable effect at planned sample size"
+    }
+   ],
+   "firstDecisive": {
+    "day": 13,
+    "state": "no_effect"
+   },
+   "stopped": null
+  },
+  {
+   "key": "a-a",
+   "label": "A/A: 10% in both arms",
+   "plannedUnitsPerArm": 7682,
+   "sent": {
+    "exposures": 16800,
+    "conversions": 2003,
+    "accepted": 18803,
+    "duplicates": 0,
+    "rejected": 0
+   },
+   "days": [
+    {
+     "day": 1,
+     "units": [
+      595,
+      605
+     ],
+     "rates": [
+      0.094118,
+      0.092562
+     ],
+     "diff": -0.001556,
+     "seqP": 1,
+     "ciLow": -0.059065,
+     "ciHigh": 0.055954,
+     "fixedP": 0.926203,
+     "srmP": 0.77283,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 2,
+     "units": [
+      1190,
+      1210
+     ],
+     "rates": [
+      0.091597,
+      0.092562
+     ],
+     "diff": 0.000965,
+     "seqP": 1,
+     "ciLow": -0.036182,
+     "ciHigh": 0.038113,
+     "fixedP": 0.934824,
+     "srmP": 0.683091,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 3,
+     "units": [
+      1787,
+      1813
+     ],
+     "rates": [
+      0.095691,
+      0.088252
+     ],
+     "diff": -0.00744,
+     "seqP": 1,
+     "ciLow": -0.036182,
+     "ciHigh": 0.022157,
+     "fixedP": 0.43988,
+     "srmP": 0.664773,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 4,
+     "units": [
+      2385,
+      2415
+     ],
+     "rates": [
+      0.101887,
+      0.091511
+     ],
+     "diff": -0.010375,
+     "seqP": 1,
+     "ciLow": -0.036182,
+     "ciHigh": 0.015634,
+     "fixedP": 0.223888,
+     "srmP": 0.665006,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 5,
+     "units": [
+      3011,
+      2989
+     ],
+     "rates": [
+      0.099967,
+      0.092339
+     ],
+     "diff": -0.007628,
+     "seqP": 1,
+     "ciLow": -0.030745,
+     "ciHigh": 0.015489,
+     "fixedP": 0.316297,
+     "srmP": 0.776396,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 6,
+     "units": [
+      3614,
+      3586
+     ],
+     "rates": [
+      0.100996,
+      0.095092
+     ],
+     "diff": -0.005904,
+     "seqP": 1,
+     "ciLow": -0.027176,
+     "ciHigh": 0.015368,
+     "fixedP": 0.399627,
+     "srmP": 0.741413,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 7,
+     "units": [
+      4213,
+      4187
+     ],
+     "rates": [
+      0.100404,
+      0.097206
+     ],
+     "diff": -0.003198,
+     "seqP": 1,
+     "ciLow": -0.02297,
+     "ciHigh": 0.015368,
+     "fixedP": 0.623362,
+     "srmP": 0.776653,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 8,
+     "units": [
+      4816,
+      4784
+     ],
+     "rates": [
+      0.099045,
+      0.099498
+     ],
+     "diff": 0.000453,
+     "seqP": 1,
+     "ciLow": -0.018102,
+     "ciHigh": 0.015368,
+     "fixedP": 0.940777,
+     "srmP": 0.743971,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 9,
+     "units": [
+      5396,
+      5404
+     ],
+     "rates": [
+      0.099333,
+      0.099186
+     ],
+     "diff": -0.000147,
+     "seqP": 1,
+     "ciLow": -0.017669,
+     "ciHigh": 0.015368,
+     "fixedP": 0.979613,
+     "srmP": 0.938639,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 10,
+     "units": [
+      5992,
+      6008
+     ],
+     "rates": [
+      0.098798,
+      0.098369
+     ],
+     "diff": -0.00043,
+     "seqP": 1,
+     "ciLow": -0.017034,
+     "ciHigh": 0.015368,
+     "fixedP": 0.937092,
+     "srmP": 0.883875,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 11,
+     "units": [
+      6590,
+      6610
+     ],
+     "rates": [
+      0.098179,
+      0.099395
+     ],
+     "diff": 0.001216,
+     "seqP": 1,
+     "ciLow": -0.014661,
+     "ciHigh": 0.015368,
+     "fixedP": 0.814928,
+     "srmP": 0.861804,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 12,
+     "units": [
+      7180,
+      7220
+     ],
+     "rates": [
+      0.097772,
+      0.099307
+     ],
+     "diff": 0.001536,
+     "seqP": 1,
+     "ciLow": -0.013679,
+     "ciHigh": 0.015368,
+     "fixedP": 0.757176,
+     "srmP": 0.738883,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 13,
+     "units": [
+      7749,
+      7851
+     ],
+     "rates": [
+      0.09911,
+      0.100369
+     ],
+     "diff": 0.00126,
+     "seqP": 1,
+     "ciLow": -0.013463,
+     "ciHigh": 0.015368,
+     "fixedP": 0.792901,
+     "srmP": 0.414126,
+     "state": "no_effect",
+     "headline": "No detectable effect at planned sample size"
+    },
+    {
+     "day": 14,
+     "units": [
+      8358,
+      8442
+     ],
+     "rates": [
+      0.09787,
+      0.099502
+     ],
+     "diff": 0.001632,
+     "seqP": 1,
+     "ciLow": -0.01252,
+     "ciHigh": 0.015368,
+     "fixedP": 0.722843,
+     "srmP": 0.516937,
+     "state": "no_effect",
+     "headline": "No detectable effect at planned sample size"
+    }
+   ],
+   "firstDecisive": {
+    "day": 13,
+    "state": "no_effect"
+   },
+   "stopped": null
+  },
+  {
+   "key": "broken-client",
+   "label": "Broken client: 8% of treatment exposures lost",
+   "plannedUnitsPerArm": 7682,
+   "sent": {
+    "exposures": 16115,
+    "conversions": 2157,
+    "accepted": 18272,
+    "duplicates": 0,
+    "rejected": 0
+   },
+   "days": [
+    {
+     "day": 1,
+     "units": [
+      591,
+      551
+     ],
+     "rates": [
+      0.087986,
+      0.114338
+     ],
+     "diff": 0.026351,
+     "seqP": 0.820279,
+     "ciLow": -0.036186,
+     "ciHigh": 0.088888,
+     "fixedP": 0.139232,
+     "srmP": 0.236548,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 2,
+     "units": [
+      1184,
+      1109
+     ],
+     "rates": [
+      0.086993,
+      0.121731
+     ],
+     "diff": 0.034738,
+     "seqP": 0.135183,
+     "ciLow": -0.006065,
+     "ciHigh": 0.075541,
+     "fixedP": 0.006419,
+     "srmP": 0.117292,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 3,
+     "units": [
+      1759,
+      1686
+     ],
+     "rates": [
+      0.089255,
+      0.120403
+     ],
+     "diff": 0.031148,
+     "seqP": 0.065489,
+     "ciLow": -0.00118,
+     "ciHigh": 0.063476,
+     "fixedP": 0.002813,
+     "srmP": 0.213597,
+     "state": "keep_running",
+     "headline": "Keep running"
+    },
+    {
+     "day": 4,
+     "units": [
+      2375,
+      2207
+     ],
+     "rates": [
+      0.091789,
+      0.125057
+     ],
+     "diff": 0.033267,
+     "seqP": 0.010881,
+     "ciLow": 0.005094,
+     "ciHigh": 0.061441,
+     "fixedP": 0.000286,
+     "srmP": 0.013069,
+     "state": "ship",
+     "headline": "Ship Buy now: free shipping"
+    },
+    {
+     "day": 5,
+     "units": [
+      2973,
+      2762
+     ],
+     "rates": [
+      0.095526,
+      0.128168
+     ],
+     "diff": 0.032642,
+     "seqP": 0.003797,
+     "ciLow": 0.007249,
+     "ciHigh": 0.058034,
+     "fixedP": 0.000086,
+     "srmP": 0.005333,
+     "state": "ship",
+     "headline": "Ship Buy now: free shipping"
+    },
+    {
+     "day": 6,
+     "units": [
+      3564,
+      3323
+     ],
+     "rates": [
+      0.095679,
+      0.13241
+     ],
+     "diff": 0.036731,
+     "seqP": 0.000128,
+     "ciLow": 0.013427,
+     "ciHigh": 0.058034,
+     "fixedP": 0.000002,
+     "srmP": 0.003684,
+     "state": "ship",
+     "headline": "Ship Buy now: free shipping"
+    },
+    {
+     "day": 7,
+     "units": [
+      4110,
+      3931
+     ],
+     "rates": [
+      0.096107,
+      0.132027
+     ],
+     "diff": 0.03592,
+     "seqP": 0.000034,
+     "ciLow": 0.014397,
+     "ciHigh": 0.057444,
+     "fixedP": 0,
+     "srmP": 0.045915,
+     "state": "ship",
+     "headline": "Ship Buy now: free shipping"
+    },
+    {
+     "day": 8,
+     "units": [
+      4676,
+      4527
+     ],
+     "rates": [
+      0.09645,
+      0.128783
+     ],
+     "diff": 0.032333,
+     "seqP": 0.000034,
+     "ciLow": 0.014397,
+     "ciHigh": 0.052339,
+     "fixedP": 0.000001,
+     "srmP": 0.12038,
+     "state": "ship",
+     "headline": "Ship Buy now: free shipping"
+    },
+    {
+     "day": 9,
+     "units": [
+      5292,
+      5046
+     ],
+     "rates": [
+      0.097317,
+      0.125644
+     ],
+     "diff": 0.028327,
+     "seqP": 0.000034,
+     "ciLow": 0.014397,
+     "ciHigh": 0.047152,
+     "fixedP": 0.000005,
+     "srmP": 0.015544,
+     "state": "ship",
+     "headline": "Ship Buy now: free shipping"
+    },
+    {
+     "day": 10,
+     "units": [
+      5888,
+      5603
+     ],
+     "rates": [
+      0.098845,
+      0.127075
+     ],
+     "diff": 0.02823,
+     "seqP": 0.000034,
+     "ciLow": 0.014397,
+     "ciHigh": 0.04621,
+     "fixedP": 0.000002,
+     "srmP": 0.007845,
+     "state": "ship",
+     "headline": "Ship Buy now: free shipping"
+    },
+    {
+     "day": 11,
+     "units": [
+      6493,
+      6152
+     ],
+     "rates": [
+      0.098568,
+      0.126138
+     ],
+     "diff": 0.02757,
+     "seqP": 0.000034,
+     "ciLow": 0.014397,
+     "ciHigh": 0.0447,
+     "fixedP": 0.000001,
+     "srmP": 0.002426,
+     "state": "ship",
+     "headline": "Ship Buy now: free shipping"
+    },
+    {
+     "day": 12,
+     "units": [
+      7083,
+      6721
+     ],
+     "rates": [
+      0.09784,
+      0.124684
+     ],
+     "diff": 0.026844,
+     "seqP": 0.000032,
+     "ciLow": 0.014397,
+     "ciHigh": 0.043198,
+     "fixedP": 0.000001,
+     "srmP": 0.002062,
+     "state": "ship",
+     "headline": "Ship Buy now: free shipping"
+    },
+    {
+     "day": 13,
+     "units": [
+      7683,
+      7278
+     ],
+     "rates": [
+      null,
+      null
+     ],
+     "diff": null,
+     "seqP": null,
+     "ciLow": null,
+     "ciHigh": null,
+     "fixedP": null,
+     "srmP": 0.000929,
+     "state": "srm",
+     "headline": "Stop: sample-ratio mismatch"
+    },
+    {
+     "day": 14,
+     "units": [
+      8294,
+      7821
+     ],
+     "rates": [
+      null,
+      null
+     ],
+     "diff": null,
+     "seqP": null,
+     "ciLow": null,
+     "ciHigh": null,
+     "fixedP": null,
+     "srmP": 0.000195,
+     "state": "srm",
+     "headline": "Stop: sample-ratio mismatch"
+    }
+   ],
+   "firstDecisive": {
+    "day": 4,
+    "state": "ship"
+   },
+   "stopped": null
+  }
+ ]
+}
