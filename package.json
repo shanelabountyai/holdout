@@ -32,7 +32,8 @@
     "foundation:status": "tsx scripts/foundation-status.ts",
     "foundation:check-modules": "tsx scripts/foundation-check-modules.ts",
     "sdk:build": "tsx scripts/build-sdk.ts",
-    "demo:site": "tsx demo-site/server.ts"
+    "demo:site": "dotenv -e .env.demo-site -- tsx demo-site/server.ts",
+    "demo:setup": "dotenv -e .env.local -- tsx scripts/demo-site-setup.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.1",
