@@ -32,8 +32,8 @@ async function body(req: IncomingMessage): Promise<Uint8Array<ArrayBuffer> | und
   let size = 0;
   for await (const c of req) {
     size += (c as Buffer).length;
-    if (size > MAX_BODY_BYTES + 1) break; // the app answers 413; no need to read the rest
     chunks.push(c as Buffer);
+    if (size > MAX_BODY_BYTES) break; // already too large: the app answers 413, no need to read the rest
   }
   return new Uint8Array(Buffer.concat(chunks));
 }
