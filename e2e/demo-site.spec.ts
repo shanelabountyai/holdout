@@ -24,7 +24,11 @@ test.beforeAll(async () => {
   );
   rmSync(ENV_FILE);
   experimentId = env.DEMO_EXPERIMENT_ID!;
-  site = spawn('npx', ['tsx', 'demo-site/server.ts'], {
+  // A stale site on the port would test the wrong config (same rule as reuseExistingServer: false in playwright.config.ts).
+  const stale = await fetch(`${SITE}/health`).then(() => true, () => false);
+  if (stale) throw new Error(`something is already listening on ${SITE}; stop it first`);
+  // node + the tsx loader, one process, so kill() in afterAll stops the server itself (npx would leave it running).
+  site = spawn(process.execPath, ['--import', 'tsx', 'demo-site/server.ts'], {
     env: { ...process.env, HOLDOUT_API_KEY: env.HOLDOUT_API_KEY, DEMO_EXPERIMENT: env.DEMO_EXPERIMENT, DEMO_PORT: '8101', HOLDOUT_URL: 'http://localhost:8100', DEMO_REFRESH_MS: '0' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -47,9 +51,12 @@ test.afterAll(() => {
 });
 
 test('a visitor sees the same variant from the snippet and the server SDK, and the purchase reaches Holdout', async ({ page, context }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+  page.on('console', (m) => m.type() === 'error' && errors.push(`console: ${m.text()}`));
   await page.goto(`${SITE}/`);
   const buy = page.locator('#buy');
-  await expect(buy).not.toHaveAttribute('data-variant', '');
+  await expect(buy, `${errors.join('\n')}\n${siteLog}`).not.toHaveAttribute('data-variant', '');
   const variant = (await buy.getAttribute('data-variant'))!;
   expect(['control', 'treatment']).toContain(variant);
   await expect(buy).toHaveText(variant === 'treatment' ? 'Buy now: free shipping' : 'Add to cart');
