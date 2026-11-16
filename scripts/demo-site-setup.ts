@@ -14,22 +14,29 @@ import { createKey } from '@/modules/apikeys/keys';
 //
 //   npm run demo:setup                       # dev database (.env.local), writes .env.demo-site
 //   npm run demo:site                        # reads .env.demo-site
-//   tsx scripts/demo-site-setup.ts --out .env.demo-site.test --key demo-e2e-123
+//   tsx scripts/demo-site-setup.ts --org e2e-northwind-x --create-org --out .env.demo-site.e2e --key demo-e2e-123
 
 const arg = (name: string) => {
   const i = process.argv.indexOf(name);
   return i > 0 ? process.argv[i + 1] : undefined;
 };
 
-async function ownerCtx(slug: string): Promise<OrgCtx> {
-  const org = await db.org.findUniqueOrThrow({ where: { slug } });
+async function ownerCtx(slug: string, create: boolean): Promise<OrgCtx> {
+  let org = await db.org.findUnique({ where: { slug } });
+  if (!org && create) {
+    // --create-org: an org of its own with one TOTP-enrolled owner, so e2e never races `seed:demo` on the demo orgs.
+    org = await db.org.create({ data: { slug, name: 'Northwind Roasters' } });
+    const user = await db.user.upsert({ where: { email: `owner@${slug}.test` }, create: { email: `owner@${slug}.test`, totpEnrolledAt: now() }, update: {} });
+    await withOrg({ orgId: org.id }, (tx) => tx.membership.create({ data: { orgId: org!.id, userId: user.id, role: 'owner' } }));
+  }
+  if (!org) throw new Error(`no org "${slug}": run npm run seed:demo first, or pass --create-org`);
   const m = await withOrg({ orgId: org.id }, (tx) => tx.membership.findFirstOrThrow({ where: { orgId: org.id, role: 'owner' }, include: { user: true } }));
   const t = now();
   return { userId: m.userId, orgId: org.id, slug, role: 'owner', session: { hash: 'demo-site-setup', userId: m.userId, email: m.user.email, authAt: t, mfaAt: t, mfaOrgId: null } as OrgCtx['session'] };
 }
 
 async function setup() {
-  const ctx = await ownerCtx(arg('--org') ?? 'acme');
+  const ctx = await ownerCtx(arg('--org') ?? 'acme', process.argv.includes('--create-org'));
   const key = arg('--key') ?? 'checkout-button';
   const out = arg('--out') ?? '.env.demo-site';
   const find = () => withOrg(ctx, (tx) => tx.experiment.findFirst({ where: { orgId: ctx.orgId, key } }));
