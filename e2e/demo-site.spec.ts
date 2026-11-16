@@ -63,7 +63,7 @@ test('a visitor sees the same variant from the snippet and the server SDK, and t
   await expect(page.locator('#buy')).toHaveAttribute('data-variant', variant);
   await expect(page.locator('#variant')).toHaveText(variant);
 
-  const stored = JSON.parse(run(`npx dotenv -e .env.test -e .env.local -- tsx scripts/demo-site-setup.ts events ${experimentId} ${uid}`).trim().split('\n').pop()!) as {
+  const stored = JSON.parse(run(`npx dotenv -e .env.test -e .env.local -- tsx scripts/demo-site-setup.ts events acme ${experimentId} ${uid}`).trim().split('\n').pop()!) as {
     exposures: { variant: string; eventId: string }[];
     conversions: { event: string; eventId: string }[];
   };

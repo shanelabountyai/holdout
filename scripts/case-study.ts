@@ -2,7 +2,8 @@ import { writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { advanceClock, now } from '@/core/clock';
 import type { OrgCtx } from '@/core/authz/guards';
-import { dbSystem as db } from '@/core/db/system';
+import { db } from '@/core/db'; // the app client: refuses a cloud database (INV-18, INV-27); org rows only through withOrg (INV-32)
+import { withOrg } from '@/core/db/rls';
 import { mulberry32 } from '@/lib/exp';
 import { createExperiment, getReadout, startExperiment, stopExperiment } from '@/lib/holdout/experiments';
 import type { DecisionState } from '@/lib/holdout/readout';
@@ -65,7 +66,7 @@ async function freshOrg(slug: string): Promise<OrgCtx> {
   const org = await db.org.create({ data: { slug, name: 'Northwind Roasters (case study)' } });
   const t = now();
   const user = await db.user.create({ data: { email: `owner@${slug}.test`, totpEnrolledAt: t } });
-  await db.membership.create({ data: { orgId: org.id, userId: user.id, role: 'owner' } });
+  await withOrg({ orgId: org.id }, (tx) => tx.membership.create({ data: { orgId: org.id, userId: user.id, role: 'owner' } }));
   return { userId: user.id, orgId: org.id, slug, role: 'owner', session: { hash: 'case-study', userId: user.id, email: user.email, authAt: t, mfaAt: t, mfaOrgId: null } as OrgCtx['session'] };
 }
 
@@ -106,7 +107,7 @@ export async function runCaseStudy(opts: { slug?: string; days?: number; visitor
         guardrails: [{ event: 'refund', kind: 'proportion' }],
       });
       // A fixed salt (allowed while draft, D-18) so every run assigns the same visitors the same way.
-      await db.experiment.update({ where: { id }, data: { salt: `case-study-${s.key}-${s.seed}` } });
+      await withOrg(ctx, (tx) => tx.experiment.update({ where: { id }, data: { salt: `case-study-${s.key}-${s.seed}` } }));
       await startExperiment(ctx, id);
       ids[s.key] = id;
     }
@@ -165,7 +166,7 @@ export async function runCaseStudy(opts: { slug?: string; days?: number; visitor
         if (!res.firstDecisive && ['ship', 'guardrail', 'worse', 'srm', 'no_effect'].includes(r.decision.state)) res.firstDecisive = { day: d + 1, state: r.decision.state };
         if (s.stopOnShip && r.decision.state === 'ship') {
           const stored = await stopExperiment(ctx, id, `case study: shipped on day ${d + 1}`);
-          const auditEvents = await db.auditEvent.count({ where: { orgId: ctx.orgId, action: 'experiment.stopped', targetId: id } });
+          const auditEvents = await withOrg(ctx, (tx) => tx.auditEvent.count({ where: { orgId: ctx.orgId, action: 'experiment.stopped', targetId: id } }));
           res.stopped = { day: d + 1, recordedState: stored.decision.state, auditEvents };
           break;
         }

@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { now } from '@/core/clock';
-import { dbSystem as db } from '@/core/db/system';
+import { db } from '@/core/db'; // the app client: refuses a cloud database (INV-18, INV-27); org rows only through withOrg (INV-32)
+import { withOrg } from '@/core/db/rls';
 import type { OrgCtx } from '@/core/authz/guards';
 import { createExperiment, startExperiment } from '@/lib/holdout/experiments';
 import { createKey } from '@/modules/apikeys/keys';
@@ -9,7 +10,7 @@ import { createKey } from '@/modules/apikeys/keys';
 // Run after `npm run seed:demo`. In the demo org "acme" (as its owner) it creates and starts the buy-button experiment
 // (PRD conversion example: 10% → 12%, 50/50, refund guardrail), creates an API key with the read and ingest scopes, and
 // writes HOLDOUT_API_KEY and DEMO_EXPERIMENT to an env file (default .env.demo-site, git-ignored). The key is never
-// printed. `events <experimentId> <unitId>` prints what Holdout stored for one visitor (used by e2e/demo-site.spec.ts).
+// printed. `events <orgSlug> <experimentId> <unitId>` prints what Holdout stored for one visitor (used by e2e/demo-site.spec.ts).
 //
 //   npm run demo:setup                       # dev database (.env.local), writes .env.demo-site
 //   npm run demo:site                        # reads .env.demo-site
@@ -22,7 +23,7 @@ const arg = (name: string) => {
 
 async function ownerCtx(slug: string): Promise<OrgCtx> {
   const org = await db.org.findUniqueOrThrow({ where: { slug } });
-  const m = await db.membership.findFirstOrThrow({ where: { orgId: org.id, role: 'owner' }, include: { user: true } });
+  const m = await withOrg({ orgId: org.id }, (tx) => tx.membership.findFirstOrThrow({ where: { orgId: org.id, role: 'owner' }, include: { user: true } }));
   const t = now();
   return { userId: m.userId, orgId: org.id, slug, role: 'owner', session: { hash: 'demo-site-setup', userId: m.userId, email: m.user.email, authAt: t, mfaAt: t, mfaOrgId: null } as OrgCtx['session'] };
 }
@@ -31,7 +32,8 @@ async function setup() {
   const ctx = await ownerCtx(arg('--org') ?? 'acme');
   const key = arg('--key') ?? 'checkout-button';
   const out = arg('--out') ?? '.env.demo-site';
-  let x = await db.experiment.findFirst({ where: { orgId: ctx.orgId, key } });
+  const find = () => withOrg(ctx, (tx) => tx.experiment.findFirst({ where: { orgId: ctx.orgId, key } }));
+  let x = await find();
   if (!x) {
     const id = await createExperiment(ctx, {
       key,
@@ -47,7 +49,8 @@ async function setup() {
       ],
       guardrails: [{ event: 'refund', kind: 'proportion' }],
     });
-    x = await db.experiment.findUniqueOrThrow({ where: { id } });
+    x = (await find())!;
+    if (x.id !== id) throw new Error('unexpected experiment');
   }
   if (x.status === 'draft') await startExperiment(ctx, x.id);
   else if (x.status === 'stopped') throw new Error(`experiment "${key}" is stopped; pass --key with a new key (a stopped experiment never restarts, D-18)`);
@@ -56,15 +59,17 @@ async function setup() {
   console.log(`Experiment "${key}" is running in org "${ctx.slug}". API key (read + ingest) written to ${out}. Next: npm run demo:site`);
 }
 
-async function events(experimentId: string, unitId: string) {
-  const exposures = await db.exposure.findMany({ where: { experimentId, unitId }, include: { variant: true } });
-  const x = await db.experiment.findUniqueOrThrow({ where: { id: experimentId } });
-  const conversions = await db.conversion.findMany({ where: { orgId: x.orgId, unitId }, orderBy: { occurredAt: 'asc' } });
+async function events(slug: string, experimentId: string, unitId: string) {
+  const org = await db.org.findUniqueOrThrow({ where: { slug } });
+  const { exposures, conversions } = await withOrg({ orgId: org.id }, async (tx) => ({
+    exposures: await tx.exposure.findMany({ where: { orgId: org.id, experimentId, unitId }, include: { variant: true } }),
+    conversions: await tx.conversion.findMany({ where: { orgId: org.id, unitId }, orderBy: { occurredAt: 'asc' } }),
+  }));
   console.log(JSON.stringify({ exposures: exposures.map((e) => ({ variant: e.variant.key, eventId: e.eventId })), conversions: conversions.map((c) => ({ event: c.event, eventId: c.eventId })) }));
 }
 
 try {
-  if (process.argv[2] === 'events') await events(process.argv[3]!, process.argv[4]!);
+  if (process.argv[2] === 'events') await events(process.argv[3]!, process.argv[4]!, process.argv[5]!);
   else await setup();
 } finally {
   await db.$disconnect();
