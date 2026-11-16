@@ -4,7 +4,7 @@ import nextTs from 'eslint-config-next/typescript';
 const config = [
   ...nextVitals,
   ...nextTs,
-  { ignores: ['.next/**', 'src/generated/**', 'spikes/**', 'next-env.d.ts'] },
+  { ignores: ['.next/**', 'src/generated/**', 'spikes/**', 'next-env.d.ts', 'sdk/holdout.js'] }, // holdout: sdk/holdout.js is generated (npm run sdk:build)
   // Spec §4: core never reaches into modules or app. This is what keeps the D-7
   // package extraction mechanical, so it is an error from the first commit.
   {
