@@ -29,7 +29,18 @@ engine (`src/lib/exp/`, Python oracle in `tools/oracle/`). Phase 2 adds:
 - **Assignment config**: `GET /api/v1/experiments` (`read` scope) returns running experiments' salt and variants in order, for
   the same `assign()` the server checks exposures with.
 
-The readout page is Phase 3.
+Phase 3 adds the readout on each experiment's page:
+
+- **A decision first**: "Ship B", "Hold: a guardrail moved", "Stop: no variant beats control", "Stop: sample-ratio mismatch",
+  "No detectable effect at planned sample size" (against the stored 2× horizon, D-16), "Keep running", or "not enough data"
+  below 100 units per arm. The numbers behind it follow: units per arm against the weights, the SRM check, each variant
+  against control with the always-valid (mSPRT) confidence sequence and p-value, the fixed-horizon test for reference, and
+  each guardrail. Looks are daily, by when events were received (D-28). More than two variants use Bonferroni (D-30).
+- **SRM blocks the readout** (HO-04): at p < 0.001 no effect is shown.
+- **Stop** (owner/admin): ends the experiment and writes `experiment.stopped` to the audit log with the readout as it stood
+  at that moment (HO-05). The page then shows that recorded readout and the experiment's history.
+
+The JS snippet, the server SDK and the demo site are Phase 4.
 
 ## Quickstart (about 10 minutes)
 

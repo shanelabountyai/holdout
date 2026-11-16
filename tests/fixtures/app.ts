@@ -7,7 +7,8 @@ import { dbSystem as db } from '@/core/db/system'; // fixtures run as the owner 
 // one row of each model, owned by `org.orgId`. INV-29 (RLS enforce) calls it too, so every org-owned clone table has rows to scope.
 //
 // Holdout: a draft experiment (the ref the experiment actions take, so start/edit/delete really run for the owner) and a
-// running one carrying an exposure, plus a conversion, so every Holdout table has rows in both orgs.
+// running one carrying an exposure, plus a conversion, so every Holdout table has rows in both orgs. The running one is
+// ref('runningExperiment'), which the stop action takes (Phase 3), so the harness's owner call really stops it.
 export async function seedApp(org: { orgId: string; userId: string }, key: 'a' | 'b'): Promise<Record<string, string>> {
   const { orgId, userId } = org;
   // Ids and keys derive from the org: the harness reseeds before every call and must find the same ref each time.
@@ -32,5 +33,5 @@ export async function seedApp(org: { orgId: string; userId: string }, key: 'a' |
   const variant = await db.variant.findFirstOrThrow({ where: { experimentId: running.id, position: 0 } });
   await db.exposure.create({ data: { orgId, experimentId: running.id, variantId: variant.id, unitId: `u-${tag}`, eventId: randomUUID(), occurredAt: t, receivedAt: t } });
   await db.conversion.create({ data: { orgId, eventId: randomUUID(), event: 'signup', unitId: `u-${tag}`, occurredAt: t, receivedAt: t } });
-  return { experiment: draft.id };
+  return { experiment: draft.id, runningExperiment: running.id };
 }

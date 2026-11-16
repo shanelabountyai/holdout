@@ -2,10 +2,11 @@ import { execSync } from 'node:child_process';
 import { expect, test } from '@playwright/test';
 
 // Holdout Phase 2: an owner drafts an experiment through the form, sees the planned sample size (D-16: 2x the
-// fixed-horizon n), starts it, and the design is shown as frozen (HO-01). Seeded as a child process (F-08).
+// fixed-horizon n), starts it, and the design is shown as frozen (HO-01). Phase 3: the readout says there is not enough
+// data yet, and stopping records the final readout and a history line (HO-05). Seeded as a child process (F-08).
 test.beforeAll(() => { execSync('npm run seed:demo:test'); });
 
-test('draft, plan and start an experiment', async ({ page }) => {
+test('draft, plan, start, read out and stop an experiment', async ({ page }) => {
   const key = `e2e-${Date.now().toString(36)}`;
   await page.goto('/demo');
   await page.getByRole('button', { name: 'owner@acme.demo.test' }).click();
@@ -33,6 +34,20 @@ test('draft, plan and start an experiment', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Start experiment' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Edit draft' })).toHaveCount(0);
 
+  // Phase 3 readout: no units yet, so no effect is reported.
+  await expect(page.getByRole('heading', { name: 'Readout' })).toBeVisible();
+  await expect(page.getByRole('status')).toHaveText('Keep running: not enough data');
+  await expect(page.getByText('experiment.started by owner@acme.demo.test')).toBeVisible();
+
   await page.getByRole('link', { name: 'Experiments' }).click();
   await expect(page.getByRole('row').filter({ hasText: key })).toContainText('running');
+  await page.getByRole('row').filter({ hasText: key }).getByRole('link').first().click();
+
+  await page.getByLabel('Reason (optional)').fill('e2e: checking the stop');
+  await page.getByRole('button', { name: 'Stop experiment' }).click();
+  await expect(page.getByText('status stopped')).toBeVisible();
+  await expect(page.getByText('Final readout, recorded when the experiment stopped')).toBeVisible();
+  await expect(page.getByRole('status')).toHaveText('Keep running: not enough data');
+  await expect(page.getByText('experiment.stopped by owner@acme.demo.test — “e2e: checking the stop”')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop experiment' })).toHaveCount(0);
 });

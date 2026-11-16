@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { orgAction, ref } from '@/core/authz/action';
 import type { OrgCtx } from '@/core/authz/guards';
-import { createExperiment, deleteDraft, renameExperiment, startExperiment, updateDraft } from '@/lib/holdout/experiments';
+import { createExperiment, deleteDraft, MAX_STOP_REASON, renameExperiment, startExperiment, stopExperiment, updateDraft } from '@/lib/holdout/experiments';
 import { design, toDesign } from '@/lib/holdout/form';
 
 // Experiments UI (Phase 2). Any member drafts; starting, which freezes the design and goes live, needs org.update
@@ -39,3 +39,14 @@ export const launchExperiment = orgAction('org.update', z.object({ id: ref('expe
   await startExperiment(ctx, i.id);
   redirect(page(ctx, i.id));
 });
+
+// Phase 3 (HO-05, D-34): stopping ends the experiment for good and records the readout at that moment; owner or admin,
+// like the start. ref('runningExperiment') so the INV-01..04 harness drives a real stop (tests/fixtures/app.ts).
+export const haltExperiment = orgAction(
+  'org.update',
+  z.object({ id: ref('runningExperiment'), reason: z.string().max(MAX_STOP_REASON).default('') }),
+  async (ctx, i) => {
+    await stopExperiment(ctx, i.id, i.reason);
+    redirect(page(ctx, i.id));
+  },
+);

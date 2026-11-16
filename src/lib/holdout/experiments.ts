@@ -8,6 +8,8 @@ import { Refused } from '@/core/errors';
 import { Prisma } from '@/generated/prisma/client';
 import type { MetricKind } from '@/generated/prisma/enums';
 import { BUCKETS, plannedUnitsPerArm, sampleSizeMeans, sampleSizeProportions, validateWeights } from '@/lib/exp';
+import type { Readout } from './readout';
+import { computeReadout } from './readout-data';
 
 // Experiments (PRD "Flags & experiments", Phase 2). Design rules, the up-front plan (D-16) and the freeze (HO-01, D-18).
 // The database triggers in 20261114000001_holdout_freeze refuse the same edits; these checks exist to say why in words.
@@ -244,3 +246,58 @@ export async function getExperiment(ctx: { orgId: string }, id: string) {
   );
   return x ?? notFound();
 }
+
+// ---- Phase 3: readout and stop (HO-04, HO-05)
+
+export const MAX_STOP_REASON = 500;
+
+async function forReadout(tx: Tx, ctx: { orgId: string }, id: string) {
+  const x = await tx.experiment.findFirst({
+    where: { id, ...inOrg(ctx) },
+    include: { variants: { orderBy: { position: 'asc' } }, guardrails: { orderBy: { position: 'asc' } } },
+  });
+  return x ?? notFound();
+}
+
+/**
+ * running → stopped (HO-05). One transaction: lock the row (ingest holds FOR SHARE on it, so no exposure lands
+ * mid-stop), compute the readout at this instant, record the stop, and write `experiment.stopped` with that readout. The
+ * stopped experiment's page shows this stored readout, so what was decided on is what stays on record.
+ */
+export async function stopExperiment(ctx: OrgCtx, id: string, reason: string): Promise<Readout> {
+  const why = reason.trim();
+  if (why.length > MAX_STOP_REASON) throw new Refused(`Reason: up to ${MAX_STOP_REASON} characters.`);
+  return withOrg(ctx, async (tx) => {
+    const row = await locked(tx, ctx, id);
+    if (row.status === 'draft') throw new Refused('A draft has not started, so there is nothing to stop. Delete it instead.');
+    if (row.status !== 'running') throw new Refused('This experiment has already stopped.');
+    const x = await forReadout(tx, ctx, id);
+    const stoppedAt = now();
+    const readout = await computeReadout(tx, { ...x, startedAt: x.startedAt! }, stoppedAt);
+    await tx.experiment.update({ where: { id }, data: { status: 'stopped', stoppedAt } });
+    await audit(ctx, 'experiment.stopped', { targetType: 'experiment', targetId: id, data: { key: x.key, reason: why, stoppedAt: stoppedAt.toISOString(), readout } }, tx);
+    return readout;
+  });
+}
+
+/**
+ * The readout to show: computed now for a running experiment; for a stopped one, the readout stored with the stop
+ * (HO-05). null for a draft.
+ */
+export async function getReadout(ctx: { orgId: string }, id: string): Promise<{ readout: Readout; stored: boolean } | null> {
+  return withOrg(ctx, async (tx) => {
+    const x = await forReadout(tx, ctx, id);
+    if (x.status === 'draft' || !x.startedAt) return null;
+    if (x.status === 'stopped') {
+      const ev = await tx.auditEvent.findFirst({ where: { ...inOrg(ctx), action: 'experiment.stopped', targetType: 'experiment', targetId: id }, orderBy: { id: 'desc' } });
+      const data = ev?.data as { readout?: Readout } | null | undefined;
+      if (data?.readout) return { readout: data.readout, stored: true };
+      return { readout: await computeReadout(tx, { ...x, startedAt: x.startedAt }, x.stoppedAt ?? now()), stored: false };
+    }
+    return { readout: await computeReadout(tx, { ...x, startedAt: x.startedAt }, now()), stored: false };
+  }, { atomic: false });
+}
+
+/** The experiment's own lines in the org audit log, newest first. */
+export const experimentHistory = (ctx: { orgId: string }, id: string) =>
+  withOrg(ctx, (tx) => tx.auditEvent.findMany({ where: { ...inOrg(ctx), targetType: 'experiment', targetId: id }, orderBy: { id: 'desc' }, take: 50 }), { atomic: false });
