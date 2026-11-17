@@ -32,11 +32,14 @@ engine (`src/lib/exp/`, Python oracle in `tools/oracle/`). Phase 2 adds:
 Phase 3 adds the readout on each experiment's page:
 
 - **A decision first**: "Ship B", "Hold: a guardrail moved", "Stop: no variant beats control", "Stop: sample-ratio mismatch",
-  "No detectable effect at planned sample size" (against the stored 2× horizon, D-16), "Keep running", or "not enough data"
-  below 100 units per arm. The numbers behind it follow: units per arm against the weights, the SRM check, each variant
+  "No detectable effect at planned sample size" (against the stored 2× horizon, D-16), "Inconclusive at planned sample size"
+  (the same horizon, but the reference fixed-horizon p is below α; D-40), "Keep running", "Keep running: SRM not yet
+  checkable" (a winner is not shipped while the split is too small for the SRM check to see an 8% exposure loss; D-41), or
+  "not enough data" below 100 units per arm. The numbers behind it follow: units per arm against the weights, the SRM check, each variant
   against control with the always-valid (mSPRT) confidence sequence and p-value, the fixed-horizon test for reference, and
   each guardrail. Looks are daily, by when events were received (D-28). More than two variants use Bonferroni (D-30).
-- **SRM blocks the readout** (HO-04): at p < 0.001 no effect is shown.
+- **SRM blocks the readout** (HO-04): at p < 0.001 no effect is shown. Below the sample where that test has 80% power
+  against an 8% loss of one arm's exposures (9 835 units in total for 50/50), the page says "SRM not yet checkable" (D-41).
 - **Stop** (owner/admin): ends the experiment and writes `experiment.stopped` to the audit log with the readout as it stood
   at that moment (HO-05). The page then shows that recorded readout and the experiment's history.
 
@@ -62,7 +65,8 @@ Phase 4 adds the client side and a demo:
 
 ## Holdout case study: the snippet → relay → ingest → readout path, with real numbers
 
-Every number in this section was printed by a command in the repository, run for the Phase 4 PR on 2026-11-16. The case
+Every number in this section was printed by a command in the repository, run for the Phase 4 PR on 2026-11-16 and rerun
+for issue #5 on 2026-11-17 (the readout's wording changed, D-40 and D-41; the case study's statistics did not). The case
 study's tables are `npm run case-study` output, committed as `docs/holdout/case-study.json`; CI reruns the study and fails if
 the output changes (`tests/sdk/case-study.test.ts`, D-39).
 
@@ -80,29 +84,36 @@ Traffic and salts are seeded; the seeds were not picked for the story (D-39).
 
 | Experiment | Events sent (exposures + conversions) | Accepted | Rejected | First decisive readout |
 |---|---|---|---|---|
-| Real effect, 10% → 12% | 16 800 + 2 256 | 19 056 | 0 | day 13: "No detectable effect at planned sample size" |
+| Real effect, 10% → 12% | 16 800 + 2 256 | 19 056 | 0 | day 13: "Inconclusive at planned sample size" |
 | A/A, 10% in both | 16 800 + 2 003 | 18 803 | 0 | day 13: "No detectable effect at planned sample size" |
-| Broken client, 10% → 12%, 8% of treatment exposures lost | 16 115 + 2 157 | 18 272 | 0 | day 4: "Ship"; day 13: "Stop: sample-ratio mismatch" |
+| Broken client, 10% → 12%, 8% of treatment exposures lost | 16 115 + 2 157 | 18 272 | 0 | days 4–8: "Keep running: SRM not yet checkable"; day 9: "Ship"; day 13: "Stop: sample-ratio mismatch" |
 
 What it shows:
 
 - **The A/A never cried wolf.** The always-valid p-value stayed at 1.0000 on all 14 daily looks, and the readout reached
   "No detectable effect" once both arms passed 7 682 units (day 13). In 2 000 simulated A/A experiments with the same daily
-  looks, a wrong ship or stop happened in 0.60% + 0.55% of runs (`tests/holdout/readout-sim.test.ts`). Peeking at a
+  looks, a wrong ship or stop happened in 0.55% + 0.50% of runs (`tests/holdout/readout-sim.test.ts`). Peeking at a
   fixed-horizon test instead rejects 24.90% of A/A runs, against 1.05% for the sequential test (`tests/exp/ho-03-simulation.test.ts`, 2 000 runs).
 - **A real effect is not always found, and the readout says so.** This seeded run of a true +2-point lift ended at the
   planned horizon without the sequential test rejecting (day 13: always-valid p 0.1809, observed +1.30 points; day 14:
   p 0.0767, confidence sequence −0.07 to +2.82 points). At the fixed-horizon sample size (day 7, 4 198 / 4 202 units) a
   fixed-horizon test would have said p 0.1634, also not significant. Across 2 000 simulated runs of the same design the
-  readout shipped the winner in **85.15%** and reported "No detectable effect" in 14.20%: this run is one of the 14%. The
-  fixed-horizon p-value shown alongside (0.0106 on day 13) is for reference only; reading it after looking every day is
-  the peeking the sequential test exists to prevent (D-02).
-- **A broken client is caught, late.** Losing 8% of treatment exposures skews the split. The SRM check flagged it and
-  withheld every effect number once p fell under 0.001 (day 13: 7 683 / 7 278 units, SRM p 0.0009; day 14: p 0.0002).
-  Before that, from day 4 (SRM p 0.0131) to day 12 (SRM p 0.0021), the readout said "Ship". The lost exposures here were
-  random, so the effect estimate was not biased and "ship" was the right call on the underlying data, but a real loss
-  that correlates with the outcome would bias it. HO-04's p < 0.001 threshold is strict by design (few false alarms); at
-  an 8% loss it needed about 15 000 units.
+  readout shipped the winner in **85.25%**, ended "Inconclusive" in 11.45% and "No detectable effect" in 2.25%: this run
+  is one of the 11%. The readout says "Inconclusive at planned sample size", not "No detectable effect", because the
+  fixed-horizon p-value on the last look is below α (0.0106 on day 13, 0.0036 on day 14; D-40). The page shows that
+  p-value labelled "reference only, not a decision": reading it after looking every day is the peeking the sequential
+  test exists to prevent (D-02), so it never ships a variant.
+- **A broken client is caught, late, and is no longer shipped before the split can be judged.** Losing 8% of treatment
+  exposures skews the split. The SRM check flagged it and withheld every effect number once p fell under 0.001 (day 13:
+  7 683 / 7 278 units, SRM p 0.0009; day 14: p 0.0002). HO-04's p < 0.001 threshold is strict by design (few false
+  alarms), so on a small sample it cannot see an 8% loss. The readout now waits until the test has 80% power against that
+  loss, **9 835 units in total** for a 50/50 split (D-41): on days 4 to 8 (4 582 to 9 203 units) the sequential test had
+  already rejected, and the readout said "Keep running: SRM not yet checkable" instead of "Ship". From day 9 to day 12
+  (10 338 to 13 804 units) it said "Ship": at 80% power the check misses one loss in five, and this seeded run is one of
+  those until day 13. The lost exposures here were random, so the effect estimate was not biased and "ship" was the
+  right call on the underlying data, but a real loss that correlates with the outcome would bias it. Holding the ship
+  longer also gives guardrails more data: with refunds 2% → 4%, the simulated true winners are now held in 85.70% of runs
+  (67.75% before D-41).
 
 Daily readouts as printed by `npm run case-study` (the effect columns are blank when SRM blocks the readout, HO-04):
 
@@ -122,8 +133,8 @@ Daily readouts as printed by `npm run case-study` (the effect columns are blank 
 | 10 | 5,943 / 6,057 | 10.77% / 12.04% | +1.27 | 0.3981 | −0.50 to +3.03 | 0.0291 | 0.2980 | Keep running |
 | 11 | 6,552 / 6,648 | 10.82% / 11.96% | +1.14 | 0.3981 | −0.50 to +2.82 | 0.0398 | 0.4034 | Keep running |
 | 12 | 7,181 / 7,219 | 10.69% / 12.05% | +1.36 | 0.1809 | −0.26 to +2.82 | 0.0104 | 0.7515 | Keep running |
-| 13 | 7,779 / 7,821 | 10.70% / 11.99% | +1.30 | 0.1809 | −0.26 to +2.82 | 0.0106 | 0.7367 | No detectable effect at planned sample size |
-| 14 | 8,371 / 8,429 | 10.57% / 11.99% | +1.42 | 0.0767 | −0.07 to +2.82 | 0.0036 | 0.6545 | No detectable effect at planned sample size |
+| 13 | 7,779 / 7,821 | 10.70% / 11.99% | +1.30 | 0.1809 | −0.26 to +2.82 | 0.0106 | 0.7367 | Inconclusive at planned sample size |
+| 14 | 8,371 / 8,429 | 10.57% / 11.99% | +1.42 | 0.0767 | −0.07 to +2.82 | 0.0036 | 0.6545 | Inconclusive at planned sample size |
 
 #### A/A: 10% in both arms
 
@@ -151,11 +162,11 @@ Daily readouts as printed by `npm run case-study` (the effect columns are blank 
 | 1 | 591 / 551 | 8.80% / 11.43% | +2.64 | 0.8203 | −3.62 to +8.89 | 0.1392 | 0.2365 | Keep running |
 | 2 | 1,184 / 1,109 | 8.70% / 12.17% | +3.47 | 0.1352 | −0.61 to +7.55 | 0.0064 | 0.1173 | Keep running |
 | 3 | 1,759 / 1,686 | 8.93% / 12.04% | +3.11 | 0.0655 | −0.12 to +6.35 | 0.0028 | 0.2136 | Keep running |
-| 4 | 2,375 / 2,207 | 9.18% / 12.51% | +3.33 | 0.0109 | +0.51 to +6.14 | 0.0003 | 0.0131 | Ship Buy now: free shipping |
-| 5 | 2,973 / 2,762 | 9.55% / 12.82% | +3.26 | 0.0038 | +0.72 to +5.80 | < 0.0001 | 0.0053 | Ship Buy now: free shipping |
-| 6 | 3,564 / 3,323 | 9.57% / 13.24% | +3.67 | 0.0001 | +1.34 to +5.80 | < 0.0001 | 0.0037 | Ship Buy now: free shipping |
-| 7 | 4,110 / 3,931 | 9.61% / 13.20% | +3.59 | < 0.0001 | +1.44 to +5.74 | < 0.0001 | 0.0459 | Ship Buy now: free shipping |
-| 8 | 4,676 / 4,527 | 9.64% / 12.88% | +3.23 | < 0.0001 | +1.44 to +5.23 | < 0.0001 | 0.1204 | Ship Buy now: free shipping |
+| 4 | 2,375 / 2,207 | 9.18% / 12.51% | +3.33 | 0.0109 | +0.51 to +6.14 | 0.0003 | 0.0131 | Keep running: SRM not yet checkable |
+| 5 | 2,973 / 2,762 | 9.55% / 12.82% | +3.26 | 0.0038 | +0.72 to +5.80 | < 0.0001 | 0.0053 | Keep running: SRM not yet checkable |
+| 6 | 3,564 / 3,323 | 9.57% / 13.24% | +3.67 | 0.0001 | +1.34 to +5.80 | < 0.0001 | 0.0037 | Keep running: SRM not yet checkable |
+| 7 | 4,110 / 3,931 | 9.61% / 13.20% | +3.59 | < 0.0001 | +1.44 to +5.74 | < 0.0001 | 0.0459 | Keep running: SRM not yet checkable |
+| 8 | 4,676 / 4,527 | 9.64% / 12.88% | +3.23 | < 0.0001 | +1.44 to +5.23 | < 0.0001 | 0.1204 | Keep running: SRM not yet checkable |
 | 9 | 5,292 / 5,046 | 9.73% / 12.56% | +2.83 | < 0.0001 | +1.44 to +4.72 | < 0.0001 | 0.0155 | Ship Buy now: free shipping |
 | 10 | 5,888 / 5,603 | 9.88% / 12.71% | +2.82 | < 0.0001 | +1.44 to +4.62 | < 0.0001 | 0.0078 | Ship Buy now: free shipping |
 | 11 | 6,493 / 6,152 | 9.86% / 12.61% | +2.76 | < 0.0001 | +1.44 to +4.47 | < 0.0001 | 0.0024 | Ship Buy now: free shipping |
