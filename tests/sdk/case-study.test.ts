@@ -32,4 +32,19 @@ describe('README case study (scripts/case-study.ts)', () => {
     expect(broken.days.at(-1)!.state).toBe('srm'); // HO-04: the lost exposures are caught and the effect is withheld
     expect(broken.days.at(-1)!.rates).toEqual([null, null]);
   });
+
+  it('issue #5: the real effect ends "Inconclusive at planned sample size", and no "Ship" before the SRM check can see an 8% loss', () => {
+    const { results } = JSON.parse(readFileSync('docs/holdout/case-study.json', 'utf8')) as Awaited<ReturnType<typeof runCaseStudy>>;
+    const real = results.find((r) => r.key === 'real-effect')!;
+    expect(real.days.slice(12).map((d) => d.headline)).toEqual(['Inconclusive at planned sample size', 'Inconclusive at planned sample size']);
+    expect(real.firstDecisive).toEqual({ day: 13, state: 'inconclusive' });
+    const aa = results.find((r) => r.key === 'a-a')!;
+    expect(aa.days.slice(12).map((d) => d.headline)).toEqual(['No detectable effect at planned sample size', 'No detectable effect at planned sample size']);
+    const broken = results.find((r) => r.key === 'broken-client')!;
+    for (const d of broken.days) {
+      const total = d.units.reduce((s, u) => s + u, 0);
+      if (total < 9835) expect(d.headline, `day ${d.day}`).not.toMatch(/^Ship/);
+    }
+    expect(broken.days.slice(3, 8).map((d) => d.headline)).toEqual(Array(5).fill('Keep running: SRM not yet checkable'));
+  });
 });

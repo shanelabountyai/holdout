@@ -90,6 +90,52 @@ describe('decision states (PRD readout)', () => {
     expect(r.decision.detail).toContain('7,682');
   });
 
+  it('inconclusive, not "no detectable effect", when the sequential test has not rejected but the reference fixed-horizon p < α (issue #5, D-40)', () => {
+    // 7 682 per arm, 10.00% vs 11.30%: fixed-horizon p ≈ 0.009, the mSPRT at τ² = MDE² does not reject on one look.
+    const r = analyze(design(), [look([arm(7682, 768), arm(7682, 868)])]);
+    expect(r.comparisons![0]!.sequential.reject).toBe(false);
+    expect(r.comparisons![0]!.fixed!.p).toBeLessThan(0.05);
+    expect(r.decision).toMatchObject({ state: 'inconclusive', variant: null, headline: 'Inconclusive at planned sample size' });
+    expect(r.decision.detail).toContain(`fixed-horizon p = ${r.comparisons![0]!.fixed!.p.toFixed(4)}`);
+    expect(r.decision.detail).toContain('reference only, not a decision');
+    // The same comparison one unit short of the horizon keeps running: only the wording at the horizon changes.
+    expect(analyze(design(), [look([arm(7681, 768), arm(7682, 868)])]).decision.state).toBe('keep_running');
+  });
+
+  it('with several treatments, inconclusive uses each comparison\'s own Bonferroni α (D-30)', () => {
+    const three = design({ variants: [{ key: 'control', name: 'Control', weight: 3334 }, { key: 'b', name: 'B', weight: 3333 }, { key: 'c', name: 'C', weight: 3333 }] });
+    // b: fixed p between 0.025 and 0.05 → not below its α of 0.025, so no-effect wording stays.
+    let found = false;
+    for (let c = 800; c < 900 && !found; c++) {
+      const r = analyze(three, [look([arm(7682, 768), arm(7682, c), arm(7682, 768)])]);
+      const p = r.comparisons![0]!.fixed!.p;
+      if (p < 0.05 && p >= 0.025 && !r.comparisons![0]!.sequential.reject) {
+        expect(r.decision.state).toBe('no_effect');
+        found = true;
+      }
+    }
+    expect(found).toBe(true);
+  });
+
+  it('never ships while the split is too small for the SRM check to see an 8% exposure loss (issue #5, D-41)', () => {
+    // 4 000 per arm, 10% vs 14%: the sequential test rejects, but 8 000 units < 9 835.
+    const r = analyze(design(), [look([arm(4000, 400), arm(4000, 560)])]);
+    expect(r.comparisons![0]!.verdict).toBe('better');
+    expect(r.srm).toMatchObject({ blocked: false, checkable: false, minTotalUnits: 9835 });
+    expect(r.decision).toMatchObject({ state: 'srm_unchecked', variant: null, headline: 'Keep running: SRM not yet checkable' });
+    expect(r.decision.detail).toContain('8,000 of the 9,835');
+    // From 9 835 units on, the same winner ships.
+    const at = analyze(design(), [look([arm(4917, 492), arm(4918, 689)])]);
+    expect(at.srm.checkable).toBe(true);
+    expect(at.decision.state).toBe('ship');
+  });
+
+  it('a guardrail hold and a "worse" stop are not ships, so they are not held back by the SRM minimum', () => {
+    const g = design({ guardrails: [{ event: 'refund', kind: 'proportion' }] });
+    expect(analyze(g, [look([arm(4000, 400, { refund: 80 }), arm(4000, 560, { refund: 200 })])]).decision.state).toBe('guardrail');
+    expect(analyze(design(), [look([arm(4000, 560), arm(4000, 400)])]).decision.state).toBe('worse');
+  });
+
   it('keep running in between, with the progress against the planned horizon', () => {
     const r = analyze(design(), [look([arm(2000, 200), arm(2000, 210)])]);
     expect(r.decision.state).toBe('keep_running');

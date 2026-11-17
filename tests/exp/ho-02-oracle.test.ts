@@ -2,7 +2,7 @@
 // Vectors: tools/oracle/vectors.json, produced by tools/oracle/oracle.py (CI job `oracle` checks it is fresh).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { chi2Sf, diffMeans, diffProportions, gammaQ, lnGamma, normCdf, normPpf, plannedUnitsPerArm, sampleSizeMeans, sampleSizeProportions, sequentialPath, srmCheck, twoSidedP } from '@/lib/exp';
+import { chi2Sf, diffMeans, diffProportions, gammaQ, lnGamma, normCdf, normPpf, plannedUnitsPerArm, sampleSizeMeans, sampleSizeProportions, sequentialPath, srmCheck, srmPower, SRM_ALPHA, SRM_DETECTABLE_LOSS, SRM_POWER, twoSidedP } from '@/lib/exp';
 
 const V = JSON.parse(readFileSync('tools/oracle/vectors.json', 'utf8'));
 const TOL = 1e-9;
@@ -48,6 +48,15 @@ describe('HO-02 oracle agreement (1e-9)', () => {
       agree(r.chi2, c.output.chi2, `srm[${i}].chi2`);
       agree(r.p, c.output.p, `srm[${i}].p`);
       expect(r.blocked, `srm[${i}].blocked`).toBe(c.output.blocked);
+    }
+  });
+  it(`SRM minimum sample (${V.srmPower.length} cases; scipy ncx2, D-41)`, () => {
+    expect(V.srmPower.length).toBe(8);
+    expect([SRM_ALPHA, SRM_DETECTABLE_LOSS, SRM_POWER]).toEqual([0.001, 0.08, 0.8]);
+    for (const [i, c] of V.srmPower.entries()) {
+      const r = srmPower(c.input.weights, c.input.loss, c.input.alpha, c.input.power);
+      for (const k of ['critical', 'lambda', 'w2'] as const) agree(r[k], c.output[k], `srmPower[${i}].${k}`);
+      expect(r.minTotalUnits, `srmPower[${i}].minTotalUnits`).toBe(c.output.minTotalUnits);
     }
   });
   it(`sequential mSPRT paths (${V.sequential.length} paths)`, () => {

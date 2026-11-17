@@ -60,3 +60,18 @@ def test_sequential_plans_at_twice_the_fixed_horizon():
     assert (oracle.planned_units_per_arm(m, "fixed"), oracle.planned_units_per_arm(m, "sequential")) == (1570, 3140)
     for case in oracle.vectors()["sampleSize"]["proportions"] + oracle.vectors()["sampleSize"]["means"]:
         assert case["planned"]["sequential"] == 2 * case["planned"]["fixed"]
+
+
+def test_srm_minimum_sample_detects_the_case_study_loss():
+    # D-41: the SRM check counts as checkable once a loss of 8% of one arm's exposures would be caught at p < 0.001
+    # with 80% power. For 50/50 that is 9 835 units in total; TS mirrors the constants in src/lib/exp/srm.ts.
+    assert (oracle.SRM_ALPHA, oracle.SRM_DETECTABLE_LOSS, oracle.SRM_POWER) == (0.001, 0.08, 0.8)
+    c = oracle.srm_power_case([5000, 5000], 0.08, 0.001, 0.8)["output"]
+    assert c["minTotalUnits"] == 9835
+    # df = 1 has a closed form: power = Phi(sqrt(lambda) - z) + Phi(-sqrt(lambda) - z), z = z_(1 - alpha/2).
+    z = oracle.stats.norm.isf(0.0005)
+    r = math.sqrt(c["lambda"])
+    assert math.isclose(oracle.stats.norm.cdf(r - z) + oracle.stats.norm.cdf(-r - z), 0.8, rel_tol=1e-10)
+    # A bigger loss needs fewer units; more power needs more.
+    assert oracle.srm_power_case([1, 1], 0.2, 0.001, 0.8)["output"]["minTotalUnits"] < c["minTotalUnits"]
+    assert oracle.srm_power_case([1, 1], 0.08, 0.001, 0.95)["output"]["minTotalUnits"] > c["minTotalUnits"]
