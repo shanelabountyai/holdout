@@ -258,8 +258,8 @@
      "ciHigh": 0.028231,
      "fixedP": 0.0106,
      "srmP": 0.736668,
-     "state": "no_effect",
-     "headline": "No detectable effect at planned sample size"
+     "state": "inconclusive",
+     "headline": "Inconclusive at planned sample size"
     },
     {
      "day": 14,
@@ -277,13 +277,13 @@
      "ciHigh": 0.028231,
      "fixedP": 0.003584,
      "srmP": 0.654529,
-     "state": "no_effect",
-     "headline": "No detectable effect at planned sample size"
+     "state": "inconclusive",
+     "headline": "Inconclusive at planned sample size"
     }
    ],
    "firstDecisive": {
     "day": 13,
-    "state": "no_effect"
+    "state": "inconclusive"
    },
    "stopped": null
   },
@@ -657,8 +657,8 @@
      "ciHigh": 0.061441,
      "fixedP": 0.000286,
      "srmP": 0.013069,
-     "state": "ship",
-     "headline": "Ship Buy now: free shipping"
+     "state": "srm_unchecked",
+     "headline": "Keep running: SRM not yet checkable"
     },
     {
      "day": 5,
@@ -676,8 +676,8 @@
      "ciHigh": 0.058034,
      "fixedP": 0.000086,
      "srmP": 0.005333,
-     "state": "ship",
-     "headline": "Ship Buy now: free shipping"
+     "state": "srm_unchecked",
+     "headline": "Keep running: SRM not yet checkable"
     },
     {
      "day": 6,
@@ -695,8 +695,8 @@
      "ciHigh": 0.058034,
      "fixedP": 0.000002,
      "srmP": 0.003684,
-     "state": "ship",
-     "headline": "Ship Buy now: free shipping"
+     "state": "srm_unchecked",
+     "headline": "Keep running: SRM not yet checkable"
     },
     {
      "day": 7,
@@ -714,8 +714,8 @@
      "ciHigh": 0.057444,
      "fixedP": 0,
      "srmP": 0.045915,
-     "state": "ship",
-     "headline": "Ship Buy now: free shipping"
+     "state": "srm_unchecked",
+     "headline": "Keep running: SRM not yet checkable"
     },
     {
      "day": 8,
@@ -733,8 +733,8 @@
      "ciHigh": 0.052339,
      "fixedP": 0.000001,
      "srmP": 0.12038,
-     "state": "ship",
-     "headline": "Ship Buy now: free shipping"
+     "state": "srm_unchecked",
+     "headline": "Keep running: SRM not yet checkable"
     },
     {
      "day": 9,
@@ -852,7 +852,7 @@
     }
    ],
    "firstDecisive": {
-    "day": 4,
+    "day": 9,
     "state": "ship"
    },
    "stopped": null

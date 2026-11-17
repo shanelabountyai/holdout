@@ -1,4 +1,4 @@
-import { diffMeans, diffProportions, MIN_UNITS_PER_ARM, sequentialStep, srmCheck, SRM_ALPHA, type SequentialResult } from '@/lib/exp';
+import { diffMeans, diffProportions, MIN_UNITS_PER_ARM, sequentialStep, srmCheck, srmMinTotalUnits, SRM_ALPHA, SRM_DETECTABLE_LOSS, SRM_POWER, type SequentialResult } from '@/lib/exp';
 
 // The readout (PRD "Readout page", Phase 3). A pure function from cumulative per-look aggregates to numbers and one
 // decision. The loader in readout-data.ts builds the aggregates from Exposure and Conversion; this file never touches the
@@ -7,7 +7,9 @@ import { diffMeans, diffProportions, MIN_UNITS_PER_ARM, sequentialStep, srmCheck
 // Primary result: the mSPRT always-valid p-value and confidence sequence (D-02, D-10, τ² = MDE²) over every look so far.
 // The fixed-horizon test on the latest look is shown alongside it but never decides. With more than one treatment, each is
 // compared with control (the first variant) at α / (k − 1) (Bonferroni, D-30). Guardrails use the same always-valid test
-// (D-31). SRM at p < 0.001 blocks everything else (HO-04). Every number in a Readout is finite or null: it is stored as
+// (D-31). SRM at p < 0.001 blocks everything else (HO-04); below the sample at which that check could see an 8% exposure
+// loss, the split is "not yet checkable" and nothing ships (issue #5, D-41). At the planned horizon without a sequential
+// rejection, a reference fixed-horizon p below α makes the result "inconclusive", never a decision (issue #5, D-40). Every number in a Readout is finite or null: it is stored as
 // JSON in the audit log when an experiment stops (HO-05), and JSON has no NaN or Infinity.
 
 export type Kind = 'proportion' | 'mean';
@@ -29,7 +31,7 @@ export type ReadoutDesign = {
   guardrails: { event: string; kind: Kind }[];
 };
 
-export type DecisionState = 'srm' | 'not_enough_data' | 'ship' | 'guardrail' | 'worse' | 'no_effect' | 'keep_running';
+export type DecisionState = 'srm' | 'not_enough_data' | 'ship' | 'srm_unchecked' | 'guardrail' | 'worse' | 'inconclusive' | 'no_effect' | 'keep_running';
 
 export type Comparison = {
   variant: string;
@@ -62,7 +64,11 @@ export type Readout = {
   plannedUnitsPerArm: number;
   minArmUnits: number;
   arms: { key: string; name: string; weight: number; units: number; level: number | null }[];
-  srm: { chi2: number; df: number; p: number; blocked: boolean; expected: number[] };
+  /**
+   * `checkable` is false until the total sample reaches `minTotalUnits`, the size at which the χ² test (p < 0.001) has 80%
+   * power to see an 8% loss of one arm's exposures (D-41); until then nothing ships. Readouts stored before D-41 lack both.
+   */
+  srm: { chi2: number; df: number; p: number; blocked: boolean; expected: number[]; checkable: boolean; minTotalUnits: number };
   /** null when SRM blocks the readout or an arm is below MIN_UNITS_PER_ARM: no effect is reported then. */
   comparisons: Comparison[] | null;
   guardrails: GuardrailResult[] | null;
@@ -164,6 +170,8 @@ export function analyze(d: ReadoutDesign, looks: Look[]): Readout {
   const minArmUnits = Math.min(...units);
   const srm = srmCheck(units, d.variants.map((v) => v.weight), SRM_ALPHA);
   const blocked = srm.blocked;
+  const srmMin = srmMinTotalUnits(d.variants.map((v) => v.weight));
+  const checkable = total >= srmMin;
   const enough = minArmUnits >= MIN_UNITS_PER_ARM;
   const show = !blocked && enough;
   const base = {
@@ -176,7 +184,7 @@ export function analyze(d: ReadoutDesign, looks: Look[]): Readout {
     plannedUnitsPerArm: d.plannedUnitsPerArm,
     minArmUnits,
     arms: d.variants.map((v, i) => ({ ...v, units: units[i]!, level: show ? stats(units[i]!, last.arms[i]!.metrics[d.metricEvent]).mean : null })),
-    srm: { chi2: srm.chi2, df: srm.df, p: srm.p, blocked, expected: srm.expected },
+    srm: { chi2: srm.chi2, df: srm.df, p: srm.p, blocked, expected: srm.expected, checkable, minTotalUnits: srmMin },
   };
   const out = (state: DecisionState, variant: string | null, headline: string, detail: string, comparisons: Comparison[] | null = null, guardrails: GuardrailResult[] | null = null): Readout => ({
     ...base,
@@ -219,10 +227,35 @@ export function analyze(d: ReadoutDesign, looks: Look[]): Readout {
       const list = moved.map(({ g, c }) => `${g.event} moved ${c.moved} (${pts(g.kind, c.diff)}, ${pv(c.sequential.p)})`).join('; ');
       return out('guardrail', w.variant, `Hold: a guardrail moved for ${name(w.variant)}`, `${name(w.variant)} beats control: ${evidence}. But ${list}. Review the guardrail before shipping.`, comparisons, guardrails);
     }
+    // Issue #5 (D-41): a split too small for the SRM check to see an 8% exposure loss cannot vouch for the comparison yet.
+    if (!checkable)
+      return out(
+        'srm_unchecked',
+        null,
+        'Keep running: SRM not yet checkable',
+        `${name(w.variant)} leads: ${evidence}. It is not shipped yet: the sample-ratio check can only see a loss of ${Math.round(SRM_DETECTABLE_LOSS * 100)}% of one arm's exposures (p < ${SRM_ALPHA}, ${Math.round(SRM_POWER * 100)}% power) from ${count(srmMin)} units in total, and there are ${count(total)} of the ${count(srmMin)}. A broken split found later would void this result. The sequential result stands; keep running.`,
+        comparisons,
+        guardrails,
+      );
     return out('ship', w.variant, `Ship ${name(w.variant)}`, `${name(w.variant)} beats control: ${evidence}. No guardrail moved.`, comparisons, guardrails);
   }
   if (comparisons.every((c) => c.verdict === 'worse'))
     return out('worse', null, 'Stop: no variant beats control', `Every variant is significantly worse than ${d.variants[0]!.name} on ${d.metricEvent} (${comparisons.map((c) => `${name(c.variant)} ${pts(d.metricKind, c.diff)}, ${pv(c.sequential.p)}`).join('; ')}). Keep control.`, comparisons, guardrails);
+  // Issue #5 (D-40): at the horizon, a reference fixed-horizon p under a comparison's α means the data neither show an
+  // effect by the rule that decides nor rule one out; "no detectable effect" would overstate it. The decision is unchanged.
+  const reference = comparisons.filter((c) => c.fixed !== null && c.fixed.p < c.alpha);
+  if (minArmUnits >= d.plannedUnitsPerArm && reference.length) {
+    const seq = comparisons.map((c) => `${name(c.variant)} always-valid ${pv(c.sequential.p)}`).join('; ');
+    const ref = reference.map((c) => `${name(c.variant)} ${pts(d.metricKind, c.diff)}, fixed-horizon ${pv(c.fixed!.p)}`).join('; ');
+    return out(
+      'inconclusive',
+      null,
+      'Inconclusive at planned sample size',
+      `Every arm reached the planned ${count(d.plannedUnitsPerArm)} units (2× the fixed-horizon n, D-16) and the sequential test, which decides, has not shown a difference from ${d.variants[0]!.name} on ${d.metricEvent} (${seq}). For reference only, not a decision: ${ref} (below α). A fixed-horizon p-value is valid only when read once at its own sample size, and this experiment was read at every look, so it cannot ship a variant (D-02). There may be an effect smaller than the minimum detectable effect of ${pts(d.metricKind, Math.abs(d.mde)).slice(1)}; to decide, plan a new experiment for a smaller effect.`,
+      comparisons,
+      guardrails,
+    );
+  }
   if (minArmUnits >= d.plannedUnitsPerArm)
     return out('no_effect', null, 'No detectable effect at planned sample size', `Every arm reached the planned ${count(d.plannedUnitsPerArm)} units (2× the fixed-horizon n, D-16) and no variant differs from control on ${d.metricEvent}. A real effect, if any, is probably smaller than the minimum detectable effect of ${pts(d.metricKind, Math.abs(d.mde)).slice(1)}.`, comparisons, guardrails);
   return out('keep_running', null, 'Keep running', `No decision yet. The smallest arm has ${count(minArmUnits)} of the planned ${count(d.plannedUnitsPerArm)} units (${Math.floor((100 * minArmUnits) / d.plannedUnitsPerArm)}%). The sequential test can be checked at any time without inflating false positives.`, comparisons, guardrails);
