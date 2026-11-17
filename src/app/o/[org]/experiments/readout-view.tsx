@@ -22,6 +22,15 @@ export function ReadoutView({ r, stored }: { r: Readout; stored: boolean }) {
         <strong>{r.decision.headline}</strong>
       </p>
       <p>{r.decision.detail}</p>
+      {r.decision.state === 'inconclusive' && r.comparisons && (
+        <p data-reference="fixed-horizon">
+          {r.comparisons
+            .filter((c) => c.fixed)
+            .map((c) => `${name(c.variant)}: fixed-horizon p = ${p(c.fixed!.p)}`)
+            .join('; ')}{' '}
+          — <strong>reference only, not a decision</strong>. The decision is the sequential test&apos;s.
+        </p>
+      )}
 
       <h3>Arms</h3>
       <table>
@@ -33,7 +42,18 @@ export function ReadoutView({ r, stored }: { r: Readout; stored: boolean }) {
         </tbody>
       </table>
       <p>
-        Sample-ratio check: χ² = {r.srm.chi2.toFixed(2)}, df {r.srm.df}, p = {p(r.srm.p)} — {r.srm.blocked ? <strong>mismatch (p &lt; 0.001): the readout is blocked (HO-04)</strong> : 'split matches the weights'}.
+        Sample-ratio check: χ² = {r.srm.chi2.toFixed(2)}, df {r.srm.df}, p = {p(r.srm.p)} —{' '}
+        {r.srm.blocked ? (
+          <strong>mismatch (p &lt; 0.001): the readout is blocked (HO-04)</strong>
+        ) : r.srm.checkable === false ? (
+          // `=== false`: readouts stored before D-41 have no `checkable` and keep their original wording.
+          <strong>
+            SRM not yet checkable: {n(r.arms.reduce((s, a) => s + a.units, 0))} of {n(r.srm.minTotalUnits)} units, the sample at which an 8% loss of one arm&apos;s exposures would be detected (p &lt; 0.001, 80% power; D-41). No variant ships until then
+          </strong>
+        ) : (
+          'split matches the weights'
+        )}
+        .
         {' '}Planned: {n(r.plannedUnitsPerArm)} units per arm; smallest arm {n(r.minArmUnits)}.
       </p>
 
@@ -41,7 +61,7 @@ export function ReadoutView({ r, stored }: { r: Readout; stored: boolean }) {
         <>
           <h3>Primary metric: {r.metricEvent}</h3>
           <table>
-            <thead><tr><th>Variant vs control</th><th>Difference</th><th>Relative</th><th>Always-valid confidence sequence</th><th>Always-valid p</th><th>Fixed-horizon 95% CI (for reference)</th><th>Fixed-horizon p</th><th>Verdict</th></tr></thead>
+            <thead><tr><th>Variant vs control</th><th>Difference</th><th>Relative</th><th>Always-valid confidence sequence</th><th>Always-valid p</th><th>Fixed-horizon 95% CI (for reference)</th><th>Fixed-horizon p (reference only, not a decision)</th><th>Verdict</th></tr></thead>
             <tbody>
               {r.comparisons.map((c) => (
                 <tr key={c.variant}>

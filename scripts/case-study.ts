@@ -163,7 +163,7 @@ export async function runCaseStudy(opts: { slug?: string; days?: number; visitor
           state: r.decision.state,
           headline: r.decision.headline,
         });
-        if (!res.firstDecisive && ['ship', 'guardrail', 'worse', 'srm', 'no_effect'].includes(r.decision.state)) res.firstDecisive = { day: d + 1, state: r.decision.state };
+        if (!res.firstDecisive && ['ship', 'guardrail', 'worse', 'srm', 'inconclusive', 'no_effect'].includes(r.decision.state)) res.firstDecisive = { day: d + 1, state: r.decision.state };
         if (s.stopOnShip && r.decision.state === 'ship') {
           const stored = await stopExperiment(ctx, id, `case study: shipped on day ${d + 1}`);
           const auditEvents = await withOrg(ctx, (tx) => tx.auditEvent.count({ where: { orgId: ctx.orgId, action: 'experiment.stopped', targetId: id } }));

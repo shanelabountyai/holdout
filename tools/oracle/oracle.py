@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from scipy import special, stats
+from scipy import optimize, special, stats
 from statsmodels.stats.proportion import confint_proportions_2indep, proportions_ztest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,6 +24,9 @@ GOLDEN = ROOT / "tests" / "exp" / "fixtures" / "assignment-golden.json"
 SEED = 28
 MIN_UNITS_PER_ARM = 100  # mirrors src/lib/exp/sequential.ts; diffMeans reports "not enough data" below it (D-15)
 SEQUENTIAL_HORIZON_MULTIPLIER = 2  # mirrors src/lib/exp/tests.ts; sequential experiments plan at 2x the fixed n (D-16)
+SRM_ALPHA = 0.001  # mirrors src/lib/exp/srm.ts (HO-04)
+SRM_DETECTABLE_LOSS = 0.08  # mirrors src/lib/exp/srm.ts: the case-study exposure loss the SRM check must be able to see (D-41)
+SRM_POWER = 0.8  # mirrors src/lib/exp/srm.ts (D-41)
 
 
 # --- assignment -----------------------------------------------------------------------------------------------
@@ -121,6 +124,26 @@ def srm_case(observed: list[int], weights: list[float]) -> dict:
     return {"input": {"observed": observed, "weights": weights}, "output": {"chi2": float(chi2), "p": float(p), "blocked": bool(p < 0.001)}}
 
 
+def srm_power_case(weights: list[float], loss: float, alpha: float, power: float) -> dict:
+    """Smallest total sample at which the SRM chi-square test (at alpha) detects losing `loss` of one arm's exposures
+    with probability `power` (D-41). The lost share is put on the arm where it is hardest to see (the smallest effect
+    size w2 = sum((q - p)^2 / p)); the noncentrality lambda solves ncx2.sf(chi2.isf(alpha, df), df, lambda) = power."""
+    w = np.asarray(weights, dtype=float)
+    p = w / w.sum()
+    df = len(p) - 1
+    w2s = []
+    for j in range(len(p)):
+        q = p.copy()
+        q[j] *= 1 - loss
+        q /= q.sum()
+        w2s.append(float(np.sum((q - p) ** 2 / p)))
+    crit = float(stats.chi2.isf(alpha, df))
+    lam = float(optimize.brentq(lambda x: stats.ncx2.sf(crit, df, x) - power, 1e-9, 1e4, xtol=1e-14, rtol=4 * np.finfo(float).eps))
+    w2 = min(w2s)
+    return {"input": {"weights": weights, "loss": loss, "alpha": alpha, "power": power},
+            "output": {"critical": crit, "lambda": lam, "w2": w2, "minTotalUnits": math.ceil(lam / w2)}}
+
+
 def sequential_case(looks: list[dict], tau2: float, alpha: float) -> dict:
     out = []
     p_run, lo_run, hi_run, rej = 1.0, -np.inf, np.inf, False
@@ -194,6 +217,11 @@ def vectors() -> dict:
         obs = rng.multinomial(n, probs / probs.sum()).tolist()
         srm.append(srm_case([int(o) for o in obs], [float(x) for x in w]))
 
+    srm_power = [srm_power_case(w, loss, a, pw) for (w, loss, a, pw) in [
+        ([5000, 5000], SRM_DETECTABLE_LOSS, SRM_ALPHA, SRM_POWER), ([1, 1], SRM_DETECTABLE_LOSS, SRM_ALPHA, 0.95), ([1, 1], 0.2, SRM_ALPHA, 0.5),
+        ([9000, 1000], SRM_DETECTABLE_LOSS, SRM_ALPHA, SRM_POWER), ([3334, 3333, 3333], SRM_DETECTABLE_LOSS, SRM_ALPHA, SRM_POWER),
+        ([2500, 2500, 2500, 2500], SRM_DETECTABLE_LOSS, SRM_ALPHA, SRM_POWER), ([5000, 3000, 2000], 0.05, 0.01, 0.9), ([100, 9900], 0.02, SRM_ALPHA, SRM_POWER)]]
+
     seq = []
     for case in range(8):
         tau2 = [0.0004, 0.25, 1e-4, 0.01][case % 4]
@@ -213,7 +241,7 @@ def vectors() -> dict:
 
     return {"generator": "tools/oracle/oracle.py", "versions": {"python": sys.version.split()[0], "numpy": np.__version__, "scipy": __import__("scipy").__version__,
                                                                   "statsmodels": __import__("statsmodels").__version__},
-            "tolerance": 1e-9, "normal": normal, "gamma": gamma, "proportions": prop, "means": means, "srm": srm, "sequential": seq, "sampleSize": ss}
+            "tolerance": 1e-9, "normal": normal, "gamma": gamma, "proportions": prop, "means": means, "srm": srm, "srmPower": srm_power, "sequential": seq, "sampleSize": ss}
 
 
 def dump(obj: dict) -> str:
