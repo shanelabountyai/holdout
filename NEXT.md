@@ -1,5 +1,21 @@
 # NEXT
 
+## ▶ 2026-11-18: Holdout design pass PR open (branch `design/impl`, unattended run)
+**Built:** the Claude Design canvas (`docs/design/`) on the real pages: readout (Main, States, Srm: decision banner with word +
+glyph + tone, primary table, daily-looks chart of the always-valid interval, guardrail and SRM cards, every number in a
+disclosure), new experiment with the planned sample computed live by the server's own `planFor` (New), and three gap designs
+drawn first and then built: experiment list (List), draft page (Draft), `/o/[org]/install` (Install). One stylesheet,
+`src/app/o/[org]/holdout.css`; no web font, no UI library, light only (D-42..D-47). Engine, schema, permissions and API unchanged.
+**Reviewed** by three independent reviewers (design, UX, accessibility); accepted findings fixed and captured as PRD DX-01..DX-17,
+the rest recorded in D-49/D-50. axe-core: 0 violations on 13 pages at 1280/390 px, light and emulated dark.
+**Left open:** `@axe-core/playwright` is not committed (adding the dependency was refused in the cloud run, D-48); no "Draft saved"
+notice and no pending button labels (need the template's ActionForm); `/onboarding` unstyled (template-owned); per-field
+`aria-invalid`; New form has no pre-filled baseline on purpose (D-49).
+**Shane's hand steps:** open the Design canvas (https://claude.ai/artifact/A4u3kaoQsiDYsvd81byE3Q) and add List, Draft and Install
+if you want them there; review the PR; decide on D-48 (add axe as a devDependency) and D-49's declined items; merge or not.
+**Local run notes:** Postgres 16 (CI 17), migrations by psql shim (D-06), `prisma migrate diff` step not runnable here (no schema
+engine; no schema change in this PR). CI decides.
+
 ## ▶ 2026-11-17: v1.7.0 PR open (branch `security/v1.7.0`): A-04, A-08 (owner decisions 2026-11-17)
 Webhook endpoints are disabled with their creator's membership; a demotion below `apikeys.manage` revokes keys and disables
 endpoints. One migration (guarded; backfills creators from the audit log and disables orphans), one breaking change

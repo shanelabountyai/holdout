@@ -25,10 +25,11 @@ export default async function OrgLayout({ children, params }: { children: React.
     <>
       <a href="#main" className="ho-skip">Skip to content</a>
       <header className="ho-header">
+        <nav aria-label="Main">
         <div className="ho-header-inner">
           <span className="ho-brand">Holdout <small>{org.name}</small></span>
           <NavLinks
-            label="Main"
+            label="Holdout"
             className="ho-nav"
             links={[
               { href: `${base}/experiments`, label: 'Experiments' },
@@ -38,6 +39,7 @@ export default async function OrgLayout({ children, params }: { children: React.
           />
         </div>
         <NavLinks label="Org and account" className="ho-subnav" links={settings} />
+        </nav>
       </header>
       <div id="main" tabIndex={-1}>{children}</div>
     </>
