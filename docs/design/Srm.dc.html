@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Readout stopped: sample-ratio mismatch</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@600;700&amp;display=swap">
+<style>
+body{margin:0;background:#F7F7F4}
+a{color:#0F5E63}a:hover{color:#0A4347}
+</style>
+</helmet>
+<div style="min-height: 100%; background: #F7F7F4; color: #16181D; font-family: Inter, system-ui, sans-serif; font-size: 15px; line-height: 1.5;">
+<header style="background: #FFFFFF; border-bottom: 1px solid #D9D9D2;">
+<div style="max-width: 1160px; margin: 0 auto; padding: 12px 24px;"><span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px;">Holdout</span></div>
+</header>
+<main style="max-width: 1160px; margin: 0 auto; padding: 24px 24px 56px; display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<span style="font-size: 13px; color: #565B66;">EXP-0047 · Running 13 days · 2 arms · sample data</span>
+<h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700;">New mobile cart drawer</h1>
+</div>
+<section role="alert" style="background: #FCE6DD; color: #7A2509; border: 2px solid #9A2E0B; border-radius: 14px; padding: 20px 24px; display: flex; flex-direction: column; gap: 6px;">
+<span style="font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;">Decision</span>
+<span style="font-family: 'Space Grotesk', sans-serif; font-size: 30px; font-weight: 700; line-height: 1.1;">✕ Stop: the traffic split is broken</span>
+<span>The treatment arm got about 8% fewer visitors than a 50/50 split should give. Some visitors who were assigned never saw it, so any comparison would be biased. Results are hidden on purpose. Fix the exposure bug and restart.</span>
+</section>
+<section aria-labelledby="units" style="background: #FFFFFF; border: 1px solid #D9D9D2; border-radius: 14px; overflow-x: auto;">
+<h2 id="units" style="margin: 0; padding: 14px 18px; font-size: 17px; border-bottom: 1px solid #E4E4DE;">What we can still show</h2>
+<table style="width: 100%; min-width: 640px; border-collapse: collapse;">
+<thead><tr style="background: #F0F0EB; text-align: left; font-size: 13px; color: #3E434D;"><th scope="col" style="padding: 10px 18px; font-weight: 600;">Arm</th><th scope="col" style="padding: 10px 8px; font-weight: 600; text-align: right;">Units seen</th><th scope="col" style="padding: 10px 8px; font-weight: 600; text-align: right;">Units expected</th><th scope="col" style="padding: 10px 18px; font-weight: 600; text-align: right;">Difference</th></tr></thead>
+<tbody>
+<tr style="border-top: 1px solid #E4E4DE;"><td style="padding: 12px 18px; font-weight: 600;">Control</td><td style="text-align: right;">[n]</td><td style="text-align: right;">[n]</td><td style="padding: 12px 18px; text-align: right;">[±n]</td></tr>
+<tr style="border-top: 1px solid #E4E4DE;"><td style="padding: 12px 18px; font-weight: 600;">Treatment</td><td style="text-align: right;">[n]</td><td style="text-align: right;">[n]</td><td style="padding: 12px 18px; text-align: right;">[±n]</td></tr>
+</tbody>
+</table>
+<p style="margin: 0; padding: 12px 18px; font-size: 14px; color: #3E434D; border-top: 1px solid #E4E4DE;">χ² test for a 50/50 split: p = [p], below the 0.001 stop line.</p>
+</section>
+<section style="background: #FFFFFF; border: 1px dashed #8A8F99; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 6px;">
+<span style="font-weight: 600;">Hidden while the split is broken</span>
+<span style="font-size: 14px; color: #3E434D;">Conversion rates · effect and interval · guardrails · daily looks</span>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":860}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
