@@ -1,30 +1,34 @@
+import Link from 'next/link';
 import { z } from 'zod';
 import { notFound } from 'next/navigation';
 import { requireOrg } from '@/core/authz/guards';
 import { can } from '@/core/authz/permissions';
 import { ActionForm } from '@/core/ui/action-form';
 import { actorEmails } from '@/core/audit';
-import { experimentHistory, getExperiment, getReadout, MAX_STOP_REASON } from '@/lib/holdout/experiments';
+import { now } from '@/core/clock';
+import { experimentHistory, getExperiment, getLookSeries, getReadout, MAX_STOP_REASON } from '@/lib/holdout/experiments';
 import { editExperiment, haltExperiment, launchExperiment, removeExperiment, renameExperimentAction } from '../actions';
 import { DesignFields, type DesignDefaults } from '../design-fields';
-import { ReadoutView } from '../readout-view';
+import { DecisionBanner, ReadoutView, SrmView } from '../readout-view';
+import { ACTIONS, Glyph, n, pctBps, runLabel, STATE, utc } from '../ui';
 
-export const metadata = { title: 'Experiment' };
+export const metadata = { title: 'Experiment · Holdout' };
 
-const pct = (bps: number) => `${(bps / 100).toFixed(bps % 100 ? 2 : 0)}%`;
-const n = (x: number) => x.toLocaleString('en-US');
 const num = (x: number | null) => (x === null ? '' : String(Number(x.toPrecision(12))));
 
+// One page per experiment. Draft: Draft.dc.html (plan, start, design, edit, delete). Running or stopped: the readout
+// (Main.dc.html, Srm.dc.html), then the same plan, design and history cards.
 export default async function ExperimentPage({ params }: { params: Promise<{ org: string; id: string }> }) {
   const ctx = await requireOrg((await params).org);
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
   const x = await getExperiment(ctx, id);
-  const [ro, history] = await Promise.all([getReadout(ctx, id), experimentHistory(ctx, id)]);
+  const [ro, series, history] = await Promise.all([getReadout(ctx, id), getLookSeries(ctx, id), experimentHistory(ctx, id)]);
   const emails = await actorEmails(history.map((h) => h.actorUserId));
   const bind = <A extends unknown[], R>(fn: (slug: string, ...a: A) => R) => fn.bind(null, ctx.slug);
   const proportion = x.metricKind === 'proportion';
   const draft = x.status === 'draft';
+  const admin = can(ctx.role, 'org.update');
   const defaults: DesignDefaults = {
     key: x.key,
     name: x.name,
@@ -37,116 +41,155 @@ export default async function ExperimentPage({ params }: { params: Promise<{ org
     variants: x.variants.map((v) => ({ key: v.key, name: v.name, weight: num(v.weight / 100) })),
     guardrails: x.guardrails.map((g) => ({ event: g.event, kind: g.kind })),
   };
+  const by = (uid: string | null) => (uid ? (emails.get(uid) ?? 'a deleted user') : 'the system');
+
+  const stopForm =
+    x.status === 'running' &&
+    (admin ? (
+      <div className="ho-stop-form">
+        <ActionForm action={bind(haltExperiment)}>
+          <input type="hidden" name="id" value={x.id} />
+          <div className="ho-stop-form">
+            <label htmlFor="stop-reason">Reason (optional)</label>
+            <textarea id="stop-reason" name="reason" maxLength={MAX_STOP_REASON} rows={2} aria-describedby="stop-help" />
+            <button type="submit" className="ho-btn">Stop and store this readout</button>
+            <span id="stop-help" style={{ fontSize: 13 }}>Ends the experiment for good: no more exposures are accepted, and this readout is recorded in the audit log as it stands now (HO-05).</span>
+          </div>
+        </ActionForm>
+      </div>
+    ) : (
+      <p style={{ margin: 0, fontSize: 14, flex: '0 1 280px' }}>An owner or admin can stop the experiment and store this readout.</p>
+    ));
 
   return (
-    <main>
-      <h1>{x.name}</h1>
-      <p>
-        Key <code>{x.key}</code> · status <strong>{x.status}</strong>
-        {x.startedAt && <> · started {x.startedAt.toISOString().slice(0, 16).replace('T', ' ')} UTC</>}
-        {x.stoppedAt && <> · stopped {x.stoppedAt.toISOString().slice(0, 16).replace('T', ' ')} UTC</>}
-      </p>
-      {x.description && <p>{x.description}</p>}
-      {ro && <ReadoutView r={ro.readout} stored={ro.stored} />}
-      {x.status === 'running' && can(ctx.role, 'org.update') && (
-        <>
-          <h2>Stop</h2>
-          <p>Stopping ends the experiment for good: no more exposures are accepted, and the readout above is recorded in the audit log as it stands at that moment (HO-05).</p>
-          <ActionForm action={bind(haltExperiment)}>
-            <input type="hidden" name="id" value={x.id} />
-            <p><label>Reason (optional) <textarea name="reason" maxLength={MAX_STOP_REASON} /></label></p>
-            <button type="submit">Stop experiment</button>
-          </ActionForm>
-        </>
-      )}
-      {x.status === 'running' && !can(ctx.role, 'org.update') && <p>An owner or admin stops the experiment.</p>}
-
-      {!draft && <p>The design is frozen: variants, weights, their order, metrics and the plan cannot change while units are being assigned (HO-01).</p>}
-
-      <h2>Planned sample size</h2>
-      <ul>
-        <li>
-          Primary metric <code>{x.metricEvent}</code>, {proportion ? 'conversion rate' : 'mean value per unit'}:{' '}
-          {proportion
-            ? <>baseline {num((x.baselineRate ?? 0) * 100)}%, minimum detectable effect {num(x.mde * 100)} percentage points</>
-            : <>{x.baselineMean !== null && <>baseline mean {num(x.baselineMean)}, </>}standard deviation {num(x.baselineSd)}, minimum detectable effect {num(x.mde)}</>}
-          {' '}(power {num(x.power * 100)}%, α {num(x.alpha * 100)}%)
-        </li>
-        <li>Fixed-horizon test: {n(x.fixedUnitsPerArm)} units per arm</li>
-        <li><strong>Planned for the sequential readout: {n(x.plannedUnitsPerArm)} units per arm</strong> (2× the fixed-horizon n, D-16)</li>
-        <li>Planned total: {n(x.plannedTotalUnits)} units across all variants, so the smallest arm reaches its planned n</li>
-      </ul>
-
-      <h2>Variants</h2>
-      <table>
-        <thead><tr><th>Order</th><th>Key</th><th>Name</th><th>Weight</th></tr></thead>
-        <tbody>
-          {x.variants.map((v) => (
-            <tr key={v.id}><td>{v.position + 1}</td><td><code>{v.key}</code></td><td>{v.name}</td><td>{pct(v.weight)}</td></tr>
-          ))}
-        </tbody>
-      </table>
-
-      <h2>Guardrail metrics</h2>
-      {x.guardrails.length ? (
-        <ul>{x.guardrails.map((g) => <li key={g.id}><code>{g.event}</code> ({g.kind === 'proportion' ? 'conversion rate' : 'mean value'})</li>)}</ul>
-      ) : <p>None.</p>}
-
-      <h2>Ingest so far</h2>
-      <p>
-        {n(x._count.exposures)} units exposed. Events received for <code>{x.metricEvent}</code>: {n(x.conversions[x.metricEvent] ?? 0)}
-        {x.guardrails.map((g) => <span key={g.id}>; <code>{g.event}</code>: {n(x.conversions[g.event] ?? 0)}</span>)}.
-      </p>
-
-      {draft && can(ctx.role, 'org.update') && (
-        <>
-          <h2>Start</h2>
-          <p>Starting freezes the design and begins accepting exposures.</p>
-          <ActionForm action={bind(launchExperiment)}>
-            <input type="hidden" name="id" value={x.id} />
-            <button type="submit">Start experiment</button>
-          </ActionForm>
-        </>
-      )}
-      {draft && !can(ctx.role, 'org.update') && <p>An owner or admin starts the experiment.</p>}
+    <main className="ho-main">
+      <div className="ho-title">
+        <span className="ho-meta">
+          <code>{x.key}</code> · {runLabel(x.status, x.startedAt, x.stoppedAt, now().getTime())} · {x.variants.length} arms
+          {x.startedAt && <> · started {utc(x.startedAt)}</>}
+          {x.stoppedAt && <> · stopped {utc(x.stoppedAt)}</>}
+        </span>
+        <h1 className="ho-h1">{x.name}</h1>
+        {x.description && <p className="ho-lead">{x.description}</p>}
+      </div>
 
       {draft ? (
-        <>
-          <h2>Edit draft</h2>
-          <ActionForm action={bind(editExperiment)}>
-            <input type="hidden" name="id" value={x.id} />
-            <DesignFields d={defaults} />
-            <button type="submit">Save draft</button>
-          </ActionForm>
-          <h2>Delete draft</h2>
-          <ActionForm action={bind(removeExperiment)}>
-            <input type="hidden" name="id" value={x.id} />
-            <button type="submit">Delete draft</button>
-          </ActionForm>
-        </>
+        <section aria-labelledby="status" className="ho-banner ho-tone-neutral" data-tone="neutral">
+          <div className="ho-banner-text">
+            <h2 id="status" className="ho-eyebrow" style={{ margin: 0 }}>Status</h2>
+            <p className="ho-headline"><Glyph g={STATE.draft.glyph} />Draft: not started</p>
+            <p>Nothing receives traffic until an owner or admin starts it. Starting freezes the variants, weights, their order, the metrics and the plan (HO-01).</p>
+          </div>
+          {admin ? (
+            <ActionForm action={bind(launchExperiment)}>
+              <input type="hidden" name="id" value={x.id} />
+              <button type="submit" className="ho-btn">Start experiment</button>
+            </ActionForm>
+          ) : (
+            <p style={{ margin: 0, fontSize: 14 }}>An owner or admin starts the experiment.</p>
+          )}
+        </section>
       ) : (
-        <>
-          <h2>Rename</h2>
-          <ActionForm action={bind(renameExperimentAction)}>
-            <input type="hidden" name="id" value={x.id} />
-            <p><label>Name <input name="name" required maxLength={120} defaultValue={x.name} /></label></p>
-            <p><label>Description <textarea name="description" maxLength={2000} defaultValue={x.description} /></label></p>
-            <button type="submit">Save</button>
-          </ActionForm>
-        </>
+        ro && <DecisionBanner r={ro.readout} stored={ro.stored} action={stopForm || undefined} />
       )}
 
-      <h2>History</h2>
-      {history.length ? (
-        <ul>
-          {history.map((h) => (
-            <li key={String(h.id)}>
-              {h.at.toISOString().slice(0, 16).replace('T', ' ')} UTC · <code>{h.action}</code> by {h.actorUserId ? (emails.get(h.actorUserId) ?? 'a deleted user') : 'the system'}
-              {h.action === 'experiment.stopped' && (h.data as { reason?: string } | null)?.reason ? <> — “{(h.data as { reason: string }).reason}”</> : null}
-            </li>
-          ))}
-        </ul>
-      ) : <p>No events.</p>}
+      {ro && (ro.readout.decision.state === 'srm' ? <SrmView r={ro.readout} /> : <ReadoutView r={ro.readout} series={series} guardrailEvents={x.guardrails.map((g) => g.event)} />)}
+
+      <div className="ho-row">
+        <section aria-labelledby="plan" className="ho-dark">
+          <h2 id="plan" className="ho-eyebrow">Planned sample</h2>
+          <span className="ho-big">{n(x.plannedUnitsPerArm)}</span>
+          <span>units per arm · {n(x.plannedTotalUnits)} in total</span>
+          <span className="ho-dim" style={{ fontSize: 14 }}>
+            2× the fixed-horizon size ({n(x.fixedUnitsPerArm)} per arm, D-16), so you can check daily without inflating false wins. Primary metric <code>{x.metricEvent}</code>,{' '}
+            {proportion
+              ? <>baseline {num((x.baselineRate ?? 0) * 100)}%, smallest lift {x.mde >= 0 ? '+' : '−'}{num(Math.abs(x.mde) * 100)} pts</>
+              : <>{x.baselineMean !== null && <>baseline mean {num(x.baselineMean)}, </>}standard deviation {num(x.baselineSd)}, smallest change {num(x.mde)}</>}
+            , {num((1 - x.alpha) * 100)}% confidence, {num(x.power * 100)}% power. With an unequal split, the total is what the smallest arm needs (D-20).
+          </span>
+        </section>
+
+        <section aria-labelledby="design" className="ho-card">
+          <h2 id="design">Design</h2>
+          <table className="ho-table ho-table-compact" style={{ fontSize: 14 }}>
+            <thead><tr><th scope="col">Order</th><th scope="col">Variant</th><th scope="col" className="num">Weight</th></tr></thead>
+            <tbody>
+              {x.variants.map((v) => (
+                <tr key={v.id}><td>{v.position + 1}</td><td>{v.name} <code>{v.key}</code></td><td className="num">{pctBps(v.weight)}</td></tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="ho-pills" style={{ alignItems: 'center' }}>
+            <span style={{ fontWeight: 600 }}>Guardrails</span>
+            {x.guardrails.length ? (
+              x.guardrails.map((g) => <span key={g.id} style={{ border: '1px solid var(--ho-field)', borderRadius: 999, padding: '4px 12px' }}><code>{g.event}</code> · {g.kind === 'proportion' ? 'rate' : 'mean'}</span>)
+            ) : <span className="ho-small">none</span>}
+          </div>
+          <p className="ho-small">
+            Ingest so far: {n(x._count.exposures)} units exposed; events received for <code>{x.metricEvent}</code>: {n(x.conversions[x.metricEvent] ?? 0)}
+            {x.guardrails.map((g) => <span key={g.id}>; <code>{g.event}</code>: {n(x.conversions[g.event] ?? 0)}</span>)}.
+          </p>
+          {x.status !== 'stopped' && (
+            <p className="ho-small">
+              Send traffic with the key <code>{x.key}</code>{draft && ' once it is started'}: <Link href={`/o/${ctx.slug}/install`}>install the snippet</Link>.
+            </p>
+          )}
+          {draft ? (
+            <a className="ho-link-btn" href="#edit">Edit draft</a>
+          ) : (
+            <p className="ho-small">The design is frozen: variants, weights, their order, metrics and the plan cannot change while units are being assigned (HO-01).</p>
+          )}
+        </section>
+      </div>
+
+      {draft ? (
+        <section aria-labelledby="edit" className="ho-card">
+          <h2 id="edit">Edit draft</h2>
+          <ActionForm action={bind(editExperiment)}>
+            <input type="hidden" name="id" value={x.id} />
+            <DesignFields d={defaults} submitLabel="Save draft" />
+          </ActionForm>
+        </section>
+      ) : (
+        <details className="ho-details ho-card">
+          <summary>Rename or edit the description</summary>
+          <ActionForm action={bind(renameExperimentAction)}>
+            <input type="hidden" name="id" value={x.id} />
+            <div className="ho-form" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="ho-field"><label htmlFor="rn-name">Name</label><input id="rn-name" name="name" required maxLength={120} defaultValue={x.name} /></div>
+              <div className="ho-field"><label htmlFor="rn-desc">Description</label><textarea id="rn-desc" name="description" maxLength={2000} defaultValue={x.description} /></div>
+              <button type="submit" className="ho-btn ho-btn-ghost" style={{ alignSelf: 'flex-start' }}>Save</button>
+            </div>
+          </ActionForm>
+        </details>
+      )}
+
+      <section aria-labelledby="hist" className="ho-card">
+        <h2 id="hist">History</h2>
+        {history.length ? (
+          <ol className="ho-history">
+            {history.map((h) => (
+              <li key={String(h.id)}>
+                <time dateTime={h.at.toISOString()}>{utc(h.at)}</time> · {ACTIONS[h.action] ?? h.action} by {by(h.actorUserId)}
+                {h.action === 'experiment.stopped' && (h.data as { reason?: string } | null)?.reason ? <> — “{(h.data as { reason: string }).reason}”</> : null}
+              </li>
+            ))}
+          </ol>
+        ) : <p className="ho-small">No events.</p>}
+      </section>
+
+      {draft && (
+        <section aria-labelledby="danger" className="ho-card" style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '10px 16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <h2 id="danger">Delete draft</h2>
+            <p className="ho-small">Only drafts can be deleted. A started experiment stays on record.</p>
+          </div>
+          <ActionForm action={bind(removeExperiment)}>
+            <input type="hidden" name="id" value={x.id} />
+            <button type="submit" className="ho-btn ho-btn-danger">Delete draft</button>
+          </ActionForm>
+        </section>
+      )}
     </main>
   );
 }
