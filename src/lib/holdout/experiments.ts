@@ -7,16 +7,17 @@ import { withOrg, type Tx } from '@/core/db/rls';
 import { Refused } from '@/core/errors';
 import { Prisma } from '@/generated/prisma/client';
 import type { MetricKind } from '@/generated/prisma/enums';
-import { BUCKETS, plannedUnitsPerArm, sampleSizeMeans, sampleSizeProportions, validateWeights } from '@/lib/exp';
+import { validateWeights } from '@/lib/exp';
+import { DEFAULT_ALPHA, DEFAULT_POWER, LIMITS, planFor, type Plan } from './plan';
 import type { Readout } from './readout';
-import { computeReadout } from './readout-data';
+import { lookSeries, type Series } from './look-series';
+import { computeLooks, computeReadout } from './readout-data';
 
 // Experiments (PRD "Flags & experiments", Phase 2). Design rules, the up-front plan (D-16) and the freeze (HO-01, D-18).
 // The database triggers in 20261114000001_holdout_freeze refuse the same edits; these checks exist to say why in words.
+// The limits and the plan live in ./plan.ts (no server imports), so the new-experiment form can show the same plan live.
+export { DEFAULT_ALPHA, DEFAULT_POWER, LIMITS, planFor, type Plan } from './plan';
 
-export const LIMITS = { minVariants: 2, maxVariants: 4, maxGuardrails: 5, minWeightBps: 100 } as const; // D-25
-export const DEFAULT_ALPHA = 0.05;
-export const DEFAULT_POWER = 0.8;
 export const KEY_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 export const EVENT_RE = /^[A-Za-z0-9_.:-]{1,100}$/;
 
@@ -36,36 +37,6 @@ export type DesignInput = {
   variants: { key: string; name: string; weight: number }[];
   guardrails: { event: string; kind: MetricKind }[];
 };
-
-export type Plan = { fixedUnitsPerArm: number; plannedUnitsPerArm: number; plannedTotalUnits: number };
-
-const fin = (x: number | null | undefined): x is number => typeof x === 'number' && Number.isFinite(x);
-
-/**
- * The planned sample size, fixed up front (PRD). Fixed-horizon n per arm at α/power for the primary metric, then
- * plannedUnitsPerArm(…, 'sequential'), which is 2× under D-16. The per-arm formula assumes equal arms, so with an unequal
- * split the smallest arm must reach it: total = per-arm n × 10 000 / smallest weight (D-20).
- */
-export function planFor(d: Pick<DesignInput, 'metricKind' | 'baselineRate' | 'baselineSd' | 'mde' | 'variants'>, alpha = DEFAULT_ALPHA, power = DEFAULT_POWER): Plan {
-  let fixed: number;
-  if (d.metricKind === 'proportion') {
-    if (!fin(d.baselineRate) || d.baselineRate <= 0 || d.baselineRate >= 1) throw new Refused('Baseline conversion rate must be between 0% and 100%.');
-    if (!fin(d.mde) || d.mde === 0) throw new Refused('The minimum detectable effect must be a number other than 0.');
-    const p2 = d.baselineRate + d.mde;
-    if (p2 <= 0 || p2 >= 1) throw new Refused('Baseline plus the minimum detectable effect must stay between 0% and 100%.');
-    fixed = sampleSizeProportions(d.baselineRate, d.mde, alpha, power);
-  } else {
-    if (!fin(d.baselineSd) || d.baselineSd <= 0) throw new Refused('The standard deviation must be a number above 0.');
-    if (!fin(d.mde) || d.mde === 0) throw new Refused('The minimum detectable effect must be a number other than 0.');
-    fixed = sampleSizeMeans(d.baselineSd, d.mde, alpha, power);
-  }
-  const fixedUnitsPerArm = Math.ceil(fixed);
-  const perArm = plannedUnitsPerArm(fixed, 'sequential');
-  const minWeight = Math.min(...d.variants.map((v) => v.weight));
-  const total = Math.ceil((perArm * BUCKETS) / minWeight);
-  if (!Number.isSafeInteger(total) || total > 2_000_000_000) throw new Refused('That plan needs more units than Holdout can track. Raise the minimum detectable effect.');
-  return { fixedUnitsPerArm, plannedUnitsPerArm: perArm, plannedTotalUnits: total };
-}
 
 /** Normalises and checks a design; throws Refused with the first problem a person can fix. */
 export function checkDesign(d: DesignInput): DesignInput {
@@ -295,6 +266,19 @@ export async function getReadout(ctx: { orgId: string }, id: string): Promise<{ 
       return { readout: await computeReadout(tx, { ...x, startedAt: x.startedAt }, x.stoppedAt ?? now()), stored: false };
     }
     return { readout: await computeReadout(tx, { ...x, startedAt: x.startedAt }, now()), stored: false };
+  }, { atomic: false });
+}
+
+/**
+ * The readout chart's series (D-42): for a running experiment the looks up to now, for a stopped one the looks up to its
+ * stop, rebuilt from stored events (a look counts what had been received by then, D-28). Display only; empty for a draft.
+ */
+export async function getLookSeries(ctx: { orgId: string }, id: string): Promise<Series[]> {
+  return withOrg(ctx, async (tx) => {
+    const x = await forReadout(tx, ctx, id);
+    if (x.status === 'draft' || !x.startedAt) return [];
+    const { design, looks } = await computeLooks(tx, { ...x, startedAt: x.startedAt }, x.status === 'stopped' ? (x.stoppedAt ?? now()) : now());
+    return lookSeries(design, looks);
   }, { atomic: false });
 }
 

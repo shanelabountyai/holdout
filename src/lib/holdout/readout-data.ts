@@ -1,6 +1,6 @@
 import { Prisma } from '@/generated/prisma/client';
 import type { Tx } from '@/core/db/rls';
-import { analyze, type ArmAgg, type Kind, type Look, type Readout } from './readout';
+import { analyze, type ArmAgg, type Kind, type Look, type Readout, type ReadoutDesign } from './readout';
 
 // Builds the readout's looks from Exposure and Conversion, as of a moment (D-28, D-29).
 //
@@ -26,6 +26,12 @@ export type ExperimentForReadout = {
 };
 
 export async function computeReadout(tx: Tx, x: ExperimentForReadout, asOf: Date): Promise<Readout> {
+  const { design, looks } = await computeLooks(tx, x, asOf);
+  return analyze(design, looks);
+}
+
+/** The design and the looks computeReadout analyses; split out so the readout page can chart every look (D-42). */
+export async function computeLooks(tx: Tx, x: ExperimentForReadout, asOf: Date): Promise<{ design: ReadoutDesign; looks: Look[] }> {
   const variants = [...x.variants].sort((a, b) => a.position - b.position);
   const guardrails = [...x.guardrails].sort((a, b) => a.position - b.position);
   const day0 = new Date(Math.floor(x.startedAt.getTime() / DAY) * DAY);
@@ -105,8 +111,8 @@ export async function computeReadout(tx: Tx, x: ExperimentForReadout, asOf: Date
     looks.push({ at: new Date(end).toISOString(), arms });
   }
 
-  return analyze(
-    {
+  return {
+    design: {
       metricEvent: x.metricEvent,
       metricKind: x.metricKind,
       mde: x.mde,
@@ -116,5 +122,5 @@ export async function computeReadout(tx: Tx, x: ExperimentForReadout, asOf: Date
       guardrails: guardrails.map((g) => ({ event: g.event, kind: g.kind })),
     },
     looks,
-  );
+  };
 }
