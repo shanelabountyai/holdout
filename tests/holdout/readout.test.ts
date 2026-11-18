@@ -201,7 +201,9 @@ describe('HO-05: stopping writes an audit event with the readout at that moment'
     expect(data.readout).toEqual(recomputed);
     expect(data.readout).toEqual(returned);
     expect(data.readout.asOf).toBe(e.stoppedAt!.toISOString());
-    expect(['ship', 'keep_running']).toContain(data.readout.decision.state);
+    // 1 500 units is below the 9 835 at which the SRM check can see an 8% loss (D-41), so a winner here is reported as
+    // srm_unchecked, never ship. The salt is random per experiment, so which of the two depends on the split.
+    expect(['srm_unchecked', 'keep_running']).toContain(data.readout.decision.state);
 
     // After the stop: exposures are refused (Phase 2 trigger), conversions are stored, the page keeps the stopped readout.
     advanceClock(60_000);
