@@ -9,6 +9,7 @@ import { now } from '@/core/clock';
 import { experimentHistory, getExperiment, getLookSeries, getReadout, MAX_STOP_REASON } from '@/lib/holdout/experiments';
 import { editExperiment, haltExperiment, launchExperiment, removeExperiment, renameExperimentAction } from '../actions';
 import { DesignFields, type DesignDefaults } from '../design-fields';
+import { ConfirmButton } from '../confirm-button';
 import { DecisionBanner, ReadoutView, SrmView } from '../readout-view';
 import { ACTIONS, Glyph, n, pctBps, runLabel, STATE, utc } from '../ui';
 
@@ -42,6 +43,11 @@ export default async function ExperimentPage({ params }: { params: Promise<{ org
     guardrails: x.guardrails.map((g) => ({ event: g.event, kind: g.kind })),
   };
   const by = (uid: string | null) => (uid ? (emails.get(uid) ?? 'a deleted user') : 'the system');
+  const stopEvent = history.find((h) => h.action === 'experiment.stopped');
+  const stopReason = (stopEvent?.data as { reason?: string } | null | undefined)?.reason || undefined;
+  const tone = ro ? STATE[ro.readout.decision.state].tone : 'neutral';
+  const srm = ro?.readout.decision.state === 'srm';
+  const unequal = new Set(x.variants.map((v) => v.weight)).size > 1;
 
   const stopForm =
     x.status === 'running' &&
@@ -52,8 +58,10 @@ export default async function ExperimentPage({ params }: { params: Promise<{ org
           <div className="ho-stop-form">
             <label htmlFor="stop-reason">Reason (optional)</label>
             <textarea id="stop-reason" name="reason" maxLength={MAX_STOP_REASON} rows={2} aria-describedby="stop-help" />
-            <button type="submit" className="ho-btn">Stop and store this readout</button>
-            <span id="stop-help" style={{ fontSize: 13 }}>Ends the experiment for good: no more exposures are accepted, and this readout is recorded in the audit log as it stands now (HO-05).</span>
+            <ConfirmButton className={tone === 'good' ? 'ho-btn' : 'ho-btn ho-btn-ghost'} question="Stop this experiment for good? No more exposures will be accepted, and this readout is recorded as the final one.">
+              Stop and store this readout
+            </ConfirmButton>
+            <span id="stop-help" style={{ fontSize: 13 }}>Ends the experiment for good: no more exposures are accepted, and this readout is recorded in the audit log as it stands now.</span>
           </div>
         </ActionForm>
       </div>
@@ -66,8 +74,8 @@ export default async function ExperimentPage({ params }: { params: Promise<{ org
       <div className="ho-title">
         <span className="ho-meta">
           <code>{x.key}</code> · {runLabel(x.status, x.startedAt, x.stoppedAt, now().getTime())} · {x.variants.length} arms
-          {x.startedAt && <> · started {utc(x.startedAt)}</>}
-          {x.stoppedAt && <> · stopped {utc(x.stoppedAt)}</>}
+          {x.startedAt && <> · from {utc(x.startedAt)}</>}
+          {x.stoppedAt && <> to {utc(x.stoppedAt)}</>}
         </span>
         <h1 className="ho-h1">{x.name}</h1>
         {x.description && <p className="ho-lead">{x.description}</p>}
@@ -78,19 +86,21 @@ export default async function ExperimentPage({ params }: { params: Promise<{ org
           <div className="ho-banner-text">
             <h2 id="status" className="ho-eyebrow" style={{ margin: 0 }}>Status</h2>
             <p className="ho-headline"><Glyph g={STATE.draft.glyph} />Draft: not started</p>
-            <p>Nothing receives traffic until an owner or admin starts it. Starting freezes the variants, weights, their order, the metrics and the plan (HO-01).</p>
+            <p>Nothing receives traffic until an owner or admin starts it. Starting freezes the variants, weights, their order, the metrics and the plan.</p>
           </div>
           {admin ? (
             <ActionForm action={bind(launchExperiment)}>
               <input type="hidden" name="id" value={x.id} />
-              <button type="submit" className="ho-btn">Start experiment</button>
+              <ConfirmButton className="ho-btn" question="Start this experiment? Its variants, weights, metrics and plan freeze, and it begins accepting traffic.">
+                Start experiment
+              </ConfirmButton>
             </ActionForm>
           ) : (
             <p style={{ margin: 0, fontSize: 14 }}>An owner or admin starts the experiment.</p>
           )}
         </section>
       ) : (
-        ro && <DecisionBanner r={ro.readout} stored={ro.stored} action={stopForm || undefined} />
+        ro && <DecisionBanner r={ro.readout} stored={ro.stored} reason={stopReason} action={stopForm || undefined} />
       )}
 
       {ro && (ro.readout.decision.state === 'srm' ? <SrmView r={ro.readout} /> : <ReadoutView r={ro.readout} series={series} guardrailEvents={x.guardrails.map((g) => g.event)} />)}
@@ -101,11 +111,11 @@ export default async function ExperimentPage({ params }: { params: Promise<{ org
           <span className="ho-big">{n(x.plannedUnitsPerArm)}</span>
           <span>units per arm · {n(x.plannedTotalUnits)} in total</span>
           <span className="ho-dim" style={{ fontSize: 14 }}>
-            2× the fixed-horizon size ({n(x.fixedUnitsPerArm)} per arm, D-16), so you can check daily without inflating false wins. Primary metric <code>{x.metricEvent}</code>,{' '}
+            2× the fixed-horizon size ({n(x.fixedUnitsPerArm)} per arm), so you can check daily without inflating false wins. Primary metric <code>{x.metricEvent}</code>,{' '}
             {proportion
               ? <>baseline {num((x.baselineRate ?? 0) * 100)}%, smallest lift {x.mde >= 0 ? '+' : '−'}{num(Math.abs(x.mde) * 100)} pts</>
               : <>{x.baselineMean !== null && <>baseline mean {num(x.baselineMean)}, </>}standard deviation {num(x.baselineSd)}, smallest change {num(x.mde)}</>}
-            , {num((1 - x.alpha) * 100)}% confidence, {num(x.power * 100)}% power. With an unequal split, the total is what the smallest arm needs (D-20).
+            , {num((1 - x.alpha) * 100)}% confidence, {num(x.power * 100)}% power.{unequal && ' With an unequal split, the total is what the smallest arm needs.'}
           </span>
         </section>
 
@@ -126,18 +136,21 @@ export default async function ExperimentPage({ params }: { params: Promise<{ org
             ) : <span className="ho-small">none</span>}
           </div>
           <p className="ho-small">
-            Ingest so far: {n(x._count.exposures)} units exposed; events received for <code>{x.metricEvent}</code>: {n(x.conversions[x.metricEvent] ?? 0)}
-            {x.guardrails.map((g) => <span key={g.id}>; <code>{g.event}</code>: {n(x.conversions[g.event] ?? 0)}</span>)}.
+            Ingest so far: {n(x._count.exposures)} units exposed to this experiment.
+            {!srm && (
+              <> Events received in this org (all experiments): <code>{x.metricEvent}</code> {n(x.conversions[x.metricEvent] ?? 0)}
+                {x.guardrails.map((g) => <span key={g.id}>, <code>{g.event}</code> {n(x.conversions[g.event] ?? 0)}</span>)}.</>
+            )}
           </p>
           {x.status !== 'stopped' && (
             <p className="ho-small">
-              Send traffic with the key <code>{x.key}</code>{draft && ' once it is started'}: <Link href={`/o/${ctx.slug}/install`}>install the snippet</Link>.
+              Send traffic with the key <code>{x.key}</code>{draft && ' once it is started'}: <Link href={`/o/${ctx.slug}/install?key=${encodeURIComponent(x.key)}`}>install the snippet</Link>.
             </p>
           )}
           {draft ? (
-            <a className="ho-link-btn" href="#edit">Edit draft</a>
+            <a className="ho-link-btn" href="#edit">Edit draft below</a>
           ) : (
-            <p className="ho-small">The design is frozen: variants, weights, their order, metrics and the plan cannot change while units are being assigned (HO-01).</p>
+            <p className="ho-small">The design is frozen: variants, weights, their order, metrics and the plan cannot change while units are being assigned.</p>
           )}
         </section>
       </div>
@@ -147,7 +160,7 @@ export default async function ExperimentPage({ params }: { params: Promise<{ org
           <h2 id="edit">Edit draft</h2>
           <ActionForm action={bind(editExperiment)}>
             <input type="hidden" name="id" value={x.id} />
-            <DesignFields d={defaults} submitLabel="Save draft" />
+            <DesignFields d={defaults} submitLabel="Save draft" embedded />
           </ActionForm>
         </section>
       ) : (
@@ -186,7 +199,7 @@ export default async function ExperimentPage({ params }: { params: Promise<{ org
           </div>
           <ActionForm action={bind(removeExperiment)}>
             <input type="hidden" name="id" value={x.id} />
-            <button type="submit" className="ho-btn ho-btn-danger">Delete draft</button>
+            <ConfirmButton className="ho-btn ho-btn-danger" question="Delete this draft? This cannot be undone.">Delete draft</ConfirmButton>
           </ActionForm>
         </section>
       )}

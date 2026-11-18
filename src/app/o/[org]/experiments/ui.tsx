@@ -20,6 +20,14 @@ export const STATE: Record<DecisionState | 'draft', { tone: Tone; glyph: string 
 };
 
 export function Glyph({ g }: { g: string }) {
+  // ◐ is missing from common UI fonts and falls back to a tiny glyph, so the hold mark is drawn.
+  if (g === '◐')
+    return (
+      <svg className="ho-glyph-svg" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M8 1.5 A6.5 6.5 0 0 0 8 14.5 Z" fill="currentColor" />
+      </svg>
+    );
   return <span aria-hidden="true">{g} </span>;
 }
 
@@ -59,7 +67,7 @@ export function runLabel(status: string, startedAt: Date | null, stoppedAt: Date
   const days = Math.floor((end - startedAt.getTime()) / DAY);
   const d = `${days} ${days === 1 ? 'day' : 'days'}`;
   if (status === 'stopped') return days < 1 ? 'Stopped the day it started' : `Stopped after ${d}`;
-  return days < 1 ? 'Running · started today' : `Running for ${d}`;
+  return days < 1 ? 'Running since today' : `Running for ${d}`;
 }
 
 export const ACTIONS: Record<string, string> = {

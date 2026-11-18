@@ -1,5 +1,5 @@
 'use client';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { LIMITS, planFor, type Plan } from '@/lib/holdout/plan';
 import { toDesign } from '@/lib/holdout/form';
 
@@ -63,9 +63,25 @@ function preview(kind: DesignDefaults['metricKind'], baseline: string, sd: strin
   }
 }
 
-export function DesignFields({ d, submitLabel }: { d: DesignDefaults; submitLabel: string }) {
+/**
+ * `embedded` (the draft page's "Edit draft"): sub-headings are h3 and the plan panel is not a separate landmark, since the
+ * page already has its own "Planned sample" card. Every field is controlled: React resets uncontrolled fields after a form
+ * action, which would wipe what was typed when the server refuses a save.
+ */
+export function DesignFields({ d, submitLabel, embedded = false }: { d: DesignDefaults; submitLabel: string; embedded?: boolean }) {
   const uid = useId();
   const f = (s: string) => `${uid}-${s}`;
+  const H = embedded ? 'h3' : 'h2';
+  const Panel = embedded ? 'div' : 'aside';
+  const card = embedded ? 'ho-card ho-card-plain' : 'ho-card';
+  const root = useRef<HTMLDivElement>(null);
+  const errRef = useRef<HTMLParagraphElement>(null);
+  const [name, setName] = useState(d.name);
+  const [key, setKey] = useState(d.key);
+  const [description, setDescription] = useState(d.description);
+  const [metricEvent, setMetricEvent] = useState(d.metricEvent);
+  const [refused, setRefused] = useState<string | null>(null);
+  const [spoken, setSpoken] = useState('');
   const [kind, setKind] = useState(d.metricKind);
   const [baseline, setBaseline] = useState(d.baseline);
   const [sd, setSd] = useState(d.sd);
@@ -77,29 +93,53 @@ export function DesignFields({ d, submitLabel }: { d: DesignDefaults; submitLabe
   const sum = variants.reduce((s, v) => s + (Number(v.weight) || 0), 0);
   const setV = (i: number, k: 'key' | 'name' | 'weight', value: string) => setVariants((vs) => vs.map((v, j) => (j === i ? { ...v, [k]: value } : v)));
   const setG = (i: number, k: 'event' | 'kind', value: string) => setGuards((gs) => gs.map((g, j) => (j === i ? { ...g, [k]: value as 'proportion' } : g)));
+  const liveText = 'plan' in pv ? `Planned sample: ${fmt(pv.plan.plannedUnitsPerArm)} units per arm, ${fmt(pv.plan.plannedTotalUnits)} in total.` : pv.error;
+
+  // Announce the plan once typing pauses, not on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setSpoken(liveText), 600);
+    return () => clearTimeout(t);
+  }, [liveText]);
+
+  // The foundation's ActionForm prints a refusal at the top of the form, far from the submit button. Repeat it beside
+  // the button and move focus there, so the person sees and hears why the save was refused.
+  useEffect(() => {
+    const form = root.current?.closest('form');
+    if (!form) return;
+    const read = () => {
+      const a = form.querySelector(':scope > p[role="alert"]');
+      setRefused(a?.textContent ?? null);
+    };
+    const mo = new MutationObserver(read);
+    mo.observe(form, { childList: true, subtree: false, characterData: true });
+    return () => mo.disconnect();
+  }, []);
+  useEffect(() => {
+    if (refused) errRef.current?.focus();
+  }, [refused]);
 
   return (
-    <div className="ho-setup ho-form">
+    <div className="ho-setup ho-form" ref={root}>
       <div className="ho-setup-form">
-        <section className="ho-card" aria-labelledby={f('about')}>
-          <h2 id={f('about')}>About</h2>
+        <section className={card} aria-labelledby={f('about')}>
+          <H id={f('about')}>About</H>
           <div className="ho-field">
             <label htmlFor={f('name')}>Name</label>
-            <input id={f('name')} name="name" required maxLength={120} defaultValue={d.name} />
+            <input id={f('name')} name="name" required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="ho-field">
             <label htmlFor={f('key')}>Key</label>
-            <input id={f('key')} name="key" required maxLength={64} pattern="[a-z0-9][a-z0-9_\-]*" defaultValue={d.key} aria-describedby={f('key-help')} autoCapitalize="off" spellCheck={false} />
+            <input id={f('key')} name="key" required maxLength={64} pattern="[a-z0-9][a-z0-9_\-]*" value={key} onChange={(e) => setKey(e.target.value)} aria-describedby={f('key-help')} autoCapitalize="off" spellCheck={false} />
             <span id={f('key-help')} className="ho-help">What your code sends at ingest, e.g. <code>checkout-button</code>: lowercase letters, digits, - and _.</span>
           </div>
           <div className="ho-field">
             <label htmlFor={f('desc')}>Description <span className="ho-help">(optional)</span></label>
-            <textarea id={f('desc')} name="description" maxLength={2000} defaultValue={d.description} rows={2} />
+            <textarea id={f('desc')} name="description" maxLength={2000} value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
           </div>
         </section>
 
-        <section className="ho-card" aria-labelledby={f('vt')}>
-          <h2 id={f('vt')}>Variants and traffic</h2>
+        <section className={card} aria-labelledby={f('vt')}>
+          <H id={f('vt')}>Variants and traffic</H>
           <div className="ho-variants">
             <span className="ho-grid-head ho-vkey" aria-hidden="true">Key</span>
             <span className="ho-grid-head" aria-hidden="true">Name</span>
@@ -122,12 +162,13 @@ export function DesignFields({ d, submitLabel }: { d: DesignDefaults; submitLabe
           </p>
         </section>
 
-        <section className="ho-card" aria-labelledby={f('metric')}>
-          <h2 id={f('metric')}>Primary metric</h2>
+        <section className={card} aria-labelledby={f('metric')}>
+          <H id={f('metric')}>Primary metric</H>
           <div className="ho-row" style={{ gap: 12 }}>
             <div className="ho-field" style={{ flexBasis: 220 }}>
               <label htmlFor={f('event')}>Event name</label>
-              <input id={f('event')} name="metricEvent" required maxLength={100} defaultValue={d.metricEvent} placeholder="purchase" autoCapitalize="off" spellCheck={false} />
+              <span id={f('event-help')} className="ho-help">The event your site sends when a unit converts, e.g. <code>purchase</code>.</span>
+              <input id={f('event')} name="metricEvent" required maxLength={100} value={metricEvent} onChange={(e) => setMetricEvent(e.target.value)} aria-describedby={f('event-help')} autoCapitalize="off" spellCheck={false} />
             </div>
             <div className="ho-field" style={{ flexBasis: 220 }}>
               <label htmlFor={f('kind')}>Kind</label>
@@ -140,7 +181,7 @@ export function DesignFields({ d, submitLabel }: { d: DesignDefaults; submitLabe
 
           <div className="ho-field">
             <label htmlFor={f('base')}>{proportion ? "Baseline: today's conversion rate, in %" : 'Baseline mean per unit (optional, shown only)'}</label>
-            <input id={f('base')} name="baseline" inputMode="decimal" value={baseline} onChange={(e) => setBaseline(e.target.value)} />
+            <input id={f('base')} name="baseline" inputMode="decimal" value={baseline} onChange={(e) => setBaseline(e.target.value)} required={proportion} />
             {proportion && (
               <div className="ho-pills" role="group" aria-label="Common baselines">
                 {BASELINES.map((b) => (
@@ -152,7 +193,8 @@ export function DesignFields({ d, submitLabel }: { d: DesignDefaults; submitLabe
           {!proportion && (
             <div className="ho-field">
               <label htmlFor={f('sd')}>Standard deviation per unit</label>
-              <input id={f('sd')} name="sd" inputMode="decimal" value={sd} onChange={(e) => setSd(e.target.value)} required />
+              <input id={f('sd')} name="sd" inputMode="decimal" value={sd} onChange={(e) => setSd(e.target.value)} required aria-describedby={f('sd-help')} />
+              <span id={f('sd-help')} className="ho-help">How much the value varies from unit to unit today, from recent data (for example the standard deviation of order value per visitor last month).</span>
             </div>
           )}
           {proportion && <input type="hidden" name="sd" value="" />}
@@ -162,16 +204,16 @@ export function DesignFields({ d, submitLabel }: { d: DesignDefaults; submitLabe
             {proportion && (
               <div className="ho-pills" role="group" aria-label="Common minimum detectable effects">
                 {MDES.map((m) => (
-                  <button key={m} type="button" className="ho-pill" aria-pressed={same(mde, m)} onClick={() => setMde(m)}>+{m} pts</button>
+                  <button key={m} type="button" className="ho-pill" aria-pressed={same(mde, m)} onClick={() => setMde(m)}>+{m} {m === '1' ? 'pt' : 'pts'}</button>
                 ))}
               </div>
             )}
-            <span id={f('mde-help')} className="ho-help">Negative when lower is better. Planned at 80% power and 95% confidence, then doubled for the sequential readout (D-16).</span>
+            <span id={f('mde-help')} className="ho-help">Negative when lower is better. Planned at 80% power and 95% confidence, then doubled so the result can be checked every day.</span>
           </div>
         </section>
 
-        <section className="ho-card" aria-labelledby={f('guards')}>
-          <h2 id={f('guards')}>Guardrails <span className="ho-help">(optional, up to {LIMITS.maxGuardrails})</span></h2>
+        <section className={card} aria-labelledby={f('guards')}>
+          <H id={f('guards')}>Guardrails <span className="ho-help">(optional, up to {LIMITS.maxGuardrails})</span></H>
           <p className="ho-help" style={{ margin: 0 }}>Metrics that must not move. If one moves either way for the winner, the readout holds the ship for a person to review.</p>
           {guards.length > 0 && (
             <div className="ho-guards">
@@ -186,8 +228,8 @@ export function DesignFields({ d, submitLabel }: { d: DesignDefaults; submitLabe
         </section>
       </div>
 
-      <aside className="ho-dark ho-aside" aria-labelledby={f('plan')}>
-        <h2 id={f('plan')} className="ho-eyebrow">Planned sample</h2>
+      <Panel className="ho-dark ho-aside" aria-labelledby={f('plan')}>
+        <H id={f('plan')} className="ho-eyebrow">{embedded ? 'Planned sample with your edits' : 'Planned sample'}</H>
         {'plan' in pv ? (
           <>
             <span className="ho-big" data-testid="planned-per-arm">{fmt(pv.plan.plannedUnitsPerArm)}</span>
@@ -203,26 +245,39 @@ export function DesignFields({ d, submitLabel }: { d: DesignDefaults; submitLabe
             <span className="ho-dim" style={{ fontSize: 14 }}>{pv.error}</span>
           </>
         )}
-        <span className="ho-sr-only" aria-live="polite" aria-atomic="true">
-          {'plan' in pv ? `Planned sample: ${fmt(pv.plan.plannedUnitsPerArm)} units per arm, ${fmt(pv.plan.plannedTotalUnits)} in total.` : ''}
-        </span>
+        <span className="ho-sr-only" aria-live="polite" aria-atomic="true">{spoken}</span>
+        {refused && (
+          <p ref={errRef} tabIndex={-1} className="ho-alert" data-testid="refused">
+            Not saved: {refused}
+          </p>
+        )}
         <button type="submit" className="ho-btn ho-btn-accent" style={{ marginTop: 6 }}>{submitLabel}</button>
         <span className="ho-dim" style={{ fontSize: 13 }}>Saved as a draft: nothing receives traffic until an owner or admin starts it.</span>
-      </aside>
+      </Panel>
     </div>
   );
 }
 
 function VariantRow({ i, v, first, canRemove, set, remove }: { i: number; v: DesignDefaults['variants'][number]; first: boolean; canRemove: boolean; set: (i: number, k: 'key' | 'name' | 'weight', value: string) => void; remove: () => void }) {
   const label = `Variant ${i + 1}`;
+  // .ho-mlabel shows the column name above each field on a phone, where the column headings are hidden.
   return (
     <>
-      <input className="ho-input ho-vkey" name="variantKeys[]" maxLength={64} value={v.key} onChange={(e) => set(i, 'key', e.target.value)} aria-label={`${label} key${first ? ' (control)' : ''}`} placeholder={first ? 'control' : 'treatment'} autoCapitalize="off" spellCheck={false} />
-      <input className="ho-input" name="variantNames[]" maxLength={80} value={v.name} onChange={(e) => set(i, 'name', e.target.value)} aria-label={`${label} name`} />
-      <input className="ho-input" name="variantWeights[]" inputMode="decimal" value={v.weight} onChange={(e) => set(i, 'weight', e.target.value)} aria-label={`${label} weight`} />
+      <div className="ho-cell ho-vkey">
+        <span className="ho-mlabel" aria-hidden="true">{label}{first ? ' (control)' : ''} · key</span>
+        <input className="ho-input" name="variantKeys[]" maxLength={64} value={v.key} onChange={(e) => set(i, 'key', e.target.value)} aria-label={`${label} key${first ? ' (control)' : ''}`} placeholder={first ? 'control' : 'treatment'} autoCapitalize="off" spellCheck={false} />
+      </div>
+      <div className="ho-cell">
+        <span className="ho-mlabel" aria-hidden="true">Name</span>
+        <input className="ho-input" name="variantNames[]" maxLength={80} value={v.name} onChange={(e) => set(i, 'name', e.target.value)} aria-label={`${label} name`} />
+      </div>
+      <div className="ho-cell">
+        <span className="ho-mlabel" aria-hidden="true">Weight %</span>
+        <input className="ho-input" name="variantWeights[]" inputMode="decimal" value={v.weight} onChange={(e) => set(i, 'weight', e.target.value)} aria-label={`${label} weight`} />
+      </div>
       {canRemove ? (
-        <button type="button" className="ho-btn-x" onClick={remove} aria-label={`Remove ${label.toLowerCase()}`}>×</button>
-      ) : <span aria-hidden="true" />}
+        <button type="button" className="ho-btn-x" onClick={remove} aria-label={`Remove ${label.toLowerCase()}`} style={{ alignSelf: 'end' }}>×</button>
+      ) : <span aria-hidden="true" className="ho-empty" />}
     </>
   );
 }

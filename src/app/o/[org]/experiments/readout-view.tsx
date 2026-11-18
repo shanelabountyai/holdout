@@ -1,3 +1,4 @@
+import { SRM_DETECTABLE_LOSS, SRM_POWER } from '@/lib/exp';
 import type { Readout } from '@/lib/holdout/readout';
 import type { Series } from '@/lib/holdout/look-series';
 import { LookChart } from './look-chart';
@@ -9,18 +10,25 @@ import { effect, Glyph, interval, level, n, p4, pctBps, STATE, Status, utc } fro
 
 const verdict = { better: 'better than control', worse: 'worse than control', undecided: 'no decision yet' } as const;
 
-export function DecisionBanner({ r, stored, action }: { r: Readout; stored: boolean; action?: React.ReactNode }) {
+const LOSS = `${Math.round(SRM_DETECTABLE_LOSS * 100)}%`;
+const POWER = `${Math.round(SRM_POWER * 100)}% power`;
+
+export function DecisionBanner({ r, stored, reason, action }: { r: Readout; stored: boolean; reason?: string; action?: React.ReactNode }) {
   const s = STATE[r.decision.state];
   const srm = r.decision.state === 'srm';
   return (
     <section aria-labelledby="decision" className={`ho-banner ho-tone-${s.tone}`} data-tone={s.tone}>
       <div className="ho-banner-text">
-        <h2 id="decision" className="ho-eyebrow" style={{ margin: 0 }}>Decision</h2>
+        <h2 id="decision" className="ho-eyebrow" style={{ margin: 0 }}>{stored ? 'Stopped · decision at the stop' : 'Decision'}</h2>
         <p className="ho-headline">
           <Glyph g={s.glyph} />
           <span role={srm ? 'alert' : 'status'} data-decision={r.decision.state}>{r.decision.headline}</span>
         </p>
+        {r.decision.state === 'inconclusive' && (
+          <p style={{ fontWeight: 600 }}>In plain words: there may be an effect smaller than the one this test was planned for, and this test cannot confirm it. To decide, plan a new experiment for a smaller lift.</p>
+        )}
         <p>{r.decision.detail}</p>
+        {stored && reason && <p>Reason given at the stop: “{reason}”</p>}
         <p style={{ fontSize: 13 }}>
           {stored ? 'Final readout, recorded when the experiment stopped' : 'As of'} {utc(r.asOf)} · {r.looks} {r.looks === 1 ? 'look' : 'looks'} (one per day)
         </p>
@@ -41,7 +49,7 @@ export function SrmView({ r }: { r: Readout }) {
   const split = r.arms.map((a) => pctBps(a.weight).replace('%', '')).join('/');
   return (
     <>
-      <section aria-labelledby="units" className="ho-card ho-card-flush">
+      <section aria-labelledby="units" className="ho-card ho-card-flush" tabIndex={0}>
         <h2 id="units">What we can still show</h2>
         <table className="ho-table" style={{ minWidth: 520 }}>
           <thead><tr><th scope="col">Arm</th><th scope="col" className="num">Units seen</th><th scope="col" className="num">Units expected</th><th scope="col" className="num">Difference</th></tr></thead>
@@ -60,7 +68,7 @@ export function SrmView({ r }: { r: Readout }) {
             })}
           </tbody>
         </table>
-        <p>χ² test for a {split} split: χ² = {r.srm.chi2.toFixed(2)}, df {r.srm.df}, p = {p4(r.srm.p)}, below the 0.001 stop line (HO-04).</p>
+        <p>χ² test for a {split} split: χ² = {r.srm.chi2.toFixed(2)}, df {r.srm.df}, p = {p4(r.srm.p)}, below the 0.001 stop line.</p>
       </section>
       <section aria-labelledby="hidden" className="ho-card ho-card-dashed">
         <h2 id="hidden" style={{ fontSize: 15 }}>Hidden while the split is broken</h2>
@@ -88,14 +96,14 @@ function SrmCard({ r }: { r: Readout }) {
       {r.srm.checkable === false ? (
         // `=== false`: readouts stored before D-41 have no `checkable` and keep their original wording.
         <p className="ho-small">
-          SRM not yet checkable: {n(total)} of {n(r.srm.minTotalUnits)} units, the sample at which an 8% loss of one arm&apos;s exposures would be detected (p &lt; 0.001, 80% power; D-41). No variant ships until then.
+          SRM not yet checkable: {n(total)} of {n(r.srm.minTotalUnits)} units, the sample at which a {LOSS} loss of one arm&apos;s exposures would be detected (p &lt; 0.001, {POWER}). No variant ships until then.
         </p>
       ) : r.srm.minTotalUnits ? (
-        <p className="ho-small">Checkable from {n(r.srm.minTotalUnits)} units (enough to catch an 8% exposure loss with 80% power). This test has {n(total)}.</p>
+        <p className="ho-small">Checkable from {n(r.srm.minTotalUnits)} units (enough to catch a {LOSS} exposure loss with {POWER}). This test has {n(total)}.</p>
       ) : (
         <p className="ho-small">The split matches the weights.</p>
       )}
-      <p className="ho-note">χ² = {r.srm.chi2.toFixed(2)}, df {r.srm.df}, p = {p4(r.srm.p)}; the readout stops below p 0.001 (HO-04).</p>
+      {total > 0 && <p className="ho-note">χ² = {r.srm.chi2.toFixed(2)}, df {r.srm.df}, p = {p4(r.srm.p)}; the readout stops if p falls below 0.001.</p>}
     </section>
   );
 }
@@ -135,7 +143,7 @@ function GuardrailCard({ r, events }: { r: Readout; events: string[] }) {
               );
             }),
           )}
-          <p className="ho-note">A guardrail that moves either way holds a ship until someone reviews it (D-31).</p>
+          <p className="ho-note">A guardrail that moves either way holds a ship until someone reviews it.</p>
         </>
       )}
     </section>
@@ -157,7 +165,7 @@ export function ReadoutView({ r, series, guardrailEvents }: { r: Readout; series
         </p>
       )}
 
-      <section aria-labelledby="arms" className="ho-card ho-card-flush">
+      <section aria-labelledby="arms" className="ho-card ho-card-flush" tabIndex={0}>
         <h2 id="arms">Primary metric: <code>{r.metricEvent}</code> ({kind === 'proportion' ? 'conversion' : 'mean per unit'})</h2>
         <table className="ho-table" style={{ minWidth: 720 }}>
           <thead>
@@ -180,9 +188,9 @@ export function ReadoutView({ r, series, guardrailEvents }: { r: Readout; series
                   {kind === 'proportion' && <td className="num">{a.level === null ? '—' : n(Math.round(a.level * a.units))}</td>}
                   <td className="num">{level(kind, a.level)}</td>
                   <td className="num" style={c?.verdict === 'better' ? { fontWeight: 600, color: 'var(--ho-good-fg)' } : c?.verdict === 'worse' ? { fontWeight: 600, color: 'var(--ho-stop-fg)' } : undefined}>
-                    {c ? <>{effect(kind, c.diff)}{c.verdict !== 'undecided' && <span className="ho-sr-only"> ({verdict[c.verdict]})</span>}</> : '—'}
+                    {c ? <>{effect(kind, c.diff, '—', 2)}{c.verdict !== 'undecided' && <span className="ho-sr-only"> ({verdict[c.verdict]})</span>}</> : '—'}
                   </td>
-                  <td>{c ? interval(kind, c.sequential.ciLow, c.sequential.ciHigh) : '—'}</td>
+                  <td>{c ? interval(kind, c.sequential.ciLow, c.sequential.ciHigh, 2) : '—'}</td>
                 </tr>
               );
             })}
@@ -197,7 +205,7 @@ export function ReadoutView({ r, series, guardrailEvents }: { r: Readout; series
           The band is the always-valid interval for the effect. It narrows as data arrives. The test calls a winner only once the whole band clears zero, so checking daily never inflates false wins.
         </p>
         {charted.length ? (
-          charted.map((s, i) => <LookChart key={s.variant} id={`chart-${i}`} s={s} kind={kind} looks={r.looks} control={r.arms[0]!.name} />)
+          charted.map((s, i) => <LookChart key={s.variant} id={`chart-${i}`} s={s} kind={kind} looks={r.looks} control={r.arms[0]!.name} ships={r.decision.state === 'ship' && r.decision.variant === s.variant} />)
         ) : (
           <p className="ho-small"><Status tone="neutral" glyph="○">Nothing to draw yet</Status>: the first point appears at the first daily look where every arm has 100 units.</p>
         )}
@@ -209,15 +217,19 @@ export function ReadoutView({ r, series, guardrailEvents }: { r: Readout; series
       </div>
 
       <p className="ho-note">
-        Fixed-horizon p (reference only, not a decision):{' '}
-        {r.comparisons?.some((c) => c.fixed) ? r.comparisons.filter((c) => c.fixed).map((c) => `${r.comparisons!.length > 1 ? `${name(c.variant)} ` : ''}${p4(c.fixed!.p)}`).join('; ') : 'not available yet'}.
-        {' '}Planned sample: {n(r.plannedUnitsPerArm)} units per arm, 2× the fixed-horizon size (D-16); smallest arm {n(r.minArmUnits)}.
+        {r.decision.state !== 'inconclusive' && (
+          <>
+            Fixed-horizon p (reference only, not a decision):{' '}
+            {r.comparisons?.some((c) => c.fixed) ? r.comparisons.filter((c) => c.fixed).map((c) => `${r.comparisons!.length > 1 ? `${name(c.variant)} ` : ''}${p4(c.fixed!.p)}`).join('; ') : 'not available yet'}.{' '}
+          </>
+        )}
+        Planned sample: {n(r.plannedUnitsPerArm)} units per arm, 2× the fixed-horizon size; smallest arm {n(r.minArmUnits)}.
         {r.comparisons && r.comparisons.length > 1 && <> With {r.comparisons.length} variants against control, each is tested at α / {r.comparisons.length} (Bonferroni).</>}
       </p>
 
       <details className="ho-details ho-card">
         <summary>All the numbers behind the decision</summary>
-        <div style={{ overflowX: 'auto' }}>
+        <div className="ho-scroll" tabIndex={0} role="region" aria-label="Arms, weights and expected units">
           <table className="ho-table ho-table-compact" style={{ minWidth: 560 }}>
             <caption className="ho-sr-only">Arms</caption>
             <thead><tr><th scope="col">Variant</th><th scope="col" className="num">Weight</th><th scope="col" className="num">Units</th><th scope="col" className="num">Expected units</th><th scope="col" className="num">{kind === 'proportion' ? 'Conversion rate' : 'Mean per unit'}</th></tr></thead>
@@ -229,7 +241,7 @@ export function ReadoutView({ r, series, guardrailEvents }: { r: Readout; series
           </table>
         </div>
         {r.comparisons && (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="ho-scroll" tabIndex={0} role="region" aria-label="Each variant against control">
             <table className="ho-table ho-table-compact" style={{ minWidth: 900 }}>
               <caption className="ho-sr-only">Each variant against control</caption>
               <thead><tr><th scope="col">Variant vs control</th><th scope="col" className="num">Difference</th><th scope="col" className="num">Relative</th><th scope="col">Always-valid confidence sequence</th><th scope="col" className="num">Always-valid p</th><th scope="col">Fixed-horizon 95% CI (for reference)</th><th scope="col" className="num">Fixed-horizon p (reference only, not a decision)</th><th scope="col">Verdict</th></tr></thead>
@@ -251,7 +263,7 @@ export function ReadoutView({ r, series, guardrailEvents }: { r: Readout; series
           </div>
         )}
         {r.guardrails && r.guardrails.length > 0 && (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="ho-scroll" tabIndex={0} role="region" aria-label="Guardrails against control">
             <table className="ho-table ho-table-compact" style={{ minWidth: 720 }}>
               <caption className="ho-sr-only">Guardrails</caption>
               <thead><tr><th scope="col">Metric</th><th scope="col">Variant vs control</th><th scope="col" className="num">Control</th><th scope="col" className="num">Variant</th><th scope="col" className="num">Difference</th><th scope="col" className="num">Always-valid p</th><th scope="col">Status</th></tr></thead>

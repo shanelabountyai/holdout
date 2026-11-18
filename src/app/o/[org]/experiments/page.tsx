@@ -40,9 +40,9 @@ export default async function Experiments({ params }: { params: Promise<{ org: s
         </section>
       ) : (
         <>
-          <section aria-labelledby="list" className="ho-card ho-card-flush">
+          <section aria-labelledby="list" className="ho-card ho-card-flush" tabIndex={0}>
             <h2 id="list">Newest first</h2>
-            <table className="ho-table" style={{ minWidth: 760 }}>
+            <table className="ho-table ho-list-table" style={{ minWidth: 760 }}>
               <thead>
                 <tr>
                   <th scope="col">Experiment</th>
@@ -61,19 +61,19 @@ export default async function Experiments({ params }: { params: Promise<{ org: s
                   return (
                     <tr key={x.id} data-key={x.key}>
                       <td>
-                        <Link href={`${base}/${x.id}`} style={{ fontWeight: 600 }}>{x.name}</Link>
+                        <Link href={`${base}/${x.id}`} style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', minHeight: 44 }}>{x.name}</Link>
                         <br />
-                        <code className="ho-help">{x.key}</code>
+                        <code className="ho-help" style={{ whiteSpace: 'nowrap' }}>{x.key}</code>
                       </td>
-                      <td>{STATUS[x.status]}<span className="ho-sr-only">, {runLabel(x.status, x.startedAt, x.stoppedAt, at)}</span></td>
-                      <td>
+                      <td data-label="Status"><span aria-hidden="true">{STATUS[x.status]}</span><span className="ho-sr-only">{runLabel(x.status, x.startedAt, x.stoppedAt, at)}</span></td>
+                      <td data-label="Decision">
                         <span className="ho-chip" style={CHIP[st.tone]}>
                           <Glyph g={st.glyph} />
-                          {r ? r.decision.headline : 'Not started'}
+                          {r ? (x.status === 'stopped' ? `At the stop: ${r.decision.headline}` : r.decision.headline) : 'Not started'}
                         </span>
                       </td>
-                      <td className="num">{days === null ? '—' : n(days)}</td>
-                      <td>
+                      <td className="num" data-label="Days">{days === null ? '—' : n(days)}</td>
+                      <td data-label="Progress">
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 200 }}>
                           <span style={{ fontSize: 14 }}>
                             {r ? <>{n(r.minArmUnits)} of {n(x.plannedUnitsPerArm)} units ({pct}%)</> : <>Plan: {n(x.plannedUnitsPerArm)} units per arm</>}
@@ -88,7 +88,7 @@ export default async function Experiments({ params }: { params: Promise<{ org: s
             </table>
           </section>
           <p className="ho-note">
-            Decision is the readout&apos;s first match in D-32&apos;s order: computed now for a running experiment, and the one recorded at the stop for a stopped experiment. A draft has no readout yet.
+            Decision is the readout&apos;s: computed now for a running experiment, and the one recorded at the stop for a stopped experiment. A draft has no readout yet.
           </p>
         </>
       )}

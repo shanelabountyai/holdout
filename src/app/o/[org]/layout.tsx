@@ -39,7 +39,7 @@ export default async function OrgLayout({ children, params }: { children: React.
         </div>
         <NavLinks label="Org and account" className="ho-subnav" links={settings} />
       </header>
-      <div id="main">{children}</div>
+      <div id="main" tabIndex={-1}>{children}</div>
     </>
   );
 }

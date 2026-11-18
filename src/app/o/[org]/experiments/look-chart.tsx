@@ -8,12 +8,12 @@ import { effect, interval } from './ui';
 
 const W = 720;
 const H = 240;
-const X0 = 56;
+const X0 = 96;
 const X1 = 700;
 const Y0 = 24;
 const Y1 = 216;
 
-export function LookChart({ s, kind, looks, control, id }: { s: Series; kind: Kind; looks: number; control: string; id: string }) {
+export function LookChart({ s, kind, looks, control, id, ships = false }: { s: Series; kind: Kind; looks: number; control: string; id: string; ships?: boolean }) {
   const scale = kind === 'proportion' ? 100 : 1;
   const pts = s.points;
   if (!pts.length) return null;
@@ -51,9 +51,9 @@ export function LookChart({ s, kind, looks, control, id }: { s: Series; kind: Ki
     <figure style={{ margin: 0 }} aria-labelledby={`${id}-cap`}>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} className="ho-chart">
         <line x1={X0} y1={zeroY} x2={X1} y2={zeroY} stroke="#16181D" strokeWidth="1.5" />
-        <text x={48} y={zeroY + 4} textAnchor="end" fontSize="12" fill="#3E434D">0</text>
-        <text x={48} y={Y0 + 4} textAnchor="end" fontSize="12" fill="#3E434D">{fmt(hi)}</text>
-        <text x={48} y={Y1 + 4} textAnchor="end" fontSize="12" fill="#3E434D">{fmt(lo)}</text>
+        <text x={X0 - 8} y={zeroY + 4} textAnchor="end" fontSize="12" fill="#3E434D">0</text>
+        <text x={X0 - 8} y={Y0 + 4} textAnchor="end" fontSize="12" fill="#3E434D">{fmt(hi)}</text>
+        <text x={X0 - 8} y={Y1 + 4} textAnchor="end" fontSize="12" fill="#3E434D">{fmt(lo)}</text>
         {pts.length > 1 ? (
           <polygon points={line([...up, ...[...dn].reverse()])} fill="#1D4F91" fillOpacity="0.16" stroke="none" />
         ) : (
@@ -67,12 +67,12 @@ export function LookChart({ s, kind, looks, control, id }: { s: Series; kind: Ki
           <>
             <line x1={clearX} y1={20} x2={clearX} y2={Y1} stroke="#565B66" strokeDasharray="4 4" />
             <text x={textRight ? clearX - 6 : clearX + 6} y={34} textAnchor={textRight ? 'end' : 'start'} fontSize="12" fill="#16181D">
-              Day {clear.look}: band clears zero
+              Day {clear.look}: band clears zero{ships ? ' → Ship' : ''}
             </text>
           </>
         )}
-        {ticks.map((d) => (
-          <text key={d} x={x(d)} y={236} textAnchor="middle" fontSize="11" fill="#3E434D">D{d}</text>
+        {ticks.map((d, i) => (
+          <text key={d} x={x(d)} y={236} textAnchor="middle" fontSize="11" fill="#3E434D" className={i === 0 || d === looks || i % 3 === 0 ? undefined : 'ho-minor'}>D{d}</text>
         ))}
       </svg>
       <figcaption id={`${id}-cap`} className="ho-note">
@@ -80,7 +80,7 @@ export function LookChart({ s, kind, looks, control, id }: { s: Series; kind: Ki
       </figcaption>
       <details className="ho-details">
         <summary>The numbers by day</summary>
-        <div style={{ overflowX: 'auto' }}>
+        <div className="ho-scroll" tabIndex={0} role="region" aria-label={`${s.name}: the numbers by day`}>
           <table className="ho-table ho-table-compact">
             <caption className="ho-sr-only">{s.name} against {control}, by daily look</caption>
             <thead><tr><th scope="col">Day</th><th scope="col" className="num">Difference</th><th scope="col">Always-valid interval</th><th scope="col">Clears zero</th></tr></thead>
