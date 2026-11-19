@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Experiment readout</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@600;700&amp;display=swap">
+<style>
+body{margin:0;background:#F7F7F4}
+a{color:#0F5E63}a:hover{color:#0A4347}
+</style>
+</helmet>
+<div style="min-height: 100%; background: #F7F7F4; color: #16181D; font-family: Inter, system-ui, sans-serif; font-size: 15px; line-height: 1.5;">
+<header style="background: #FFFFFF; border-bottom: 1px solid #D9D9D2;">
+<div style="max-width: 1160px; margin: 0 auto; padding: 12px 24px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center;">
+<span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px;">Holdout</span>
+<nav aria-label="Main" style="display: flex; gap: 18px; font-size: 14px;"><a href="#" style="font-weight: 600; color: #16181D; text-decoration: none; border-bottom: 2px solid #0F5E63; padding: 8px 0;">Experiments</a><a href="New.dc.html" style="color: #3E434D; text-decoration: none; padding: 8px 0;">New experiment</a><a href="#" style="color: #3E434D; text-decoration: none; padding: 8px 0;">Install snippet</a></nav>
+</div>
+</header>
+<main style="max-width: 1160px; margin: 0 auto; padding: 24px 24px 56px; display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<span style="font-size: 13px; color: #565B66;">EXP-0042 · Running 14 days · 2 arms · sample data</span>
+<h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700;">Checkout button: "Buy now" vs "Get it today"</h1>
+</div>
+
+<section role="status" style="background: #E6EEF9; color: #163F75; border-radius: 14px; padding: 20px 24px; display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center; justify-content: space-between;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<span style="font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;">Decision</span>
+<span style="font-family: 'Space Grotesk', sans-serif; font-size: 30px; font-weight: 700; line-height: 1.1;">✓ Ship "Get it today"</span>
+<span style="font-size: 15px;">Conversion is higher with 95% confidence that holds no matter how often you looked. Guardrails held. This call is permanent: a later look can't flip it back.</span>
+</div>
+<button type="button" style="min-height: 48px; padding: 0 18px; border-radius: 10px; border: none; background: #1D4F91; color: #FFFFFF; font: inherit; font-weight: 600;">Stop and store this readout</button>
+</section>
+
+<section aria-labelledby="arms" style="background: #FFFFFF; border: 1px solid #D9D9D2; border-radius: 14px; overflow-x: auto;">
+<h2 id="arms" style="margin: 0; padding: 14px 18px; font-size: 17px; border-bottom: 1px solid #E4E4DE;">Primary metric: checkout conversion</h2>
+<table style="width: 100%; min-width: 760px; border-collapse: collapse;">
+<thead><tr style="background: #F0F0EB; text-align: left; font-size: 13px; color: #3E434D;">
+<th scope="col" style="padding: 10px 18px; font-weight: 600;">Arm</th><th scope="col" style="padding: 10px 8px; font-weight: 600; text-align: right;">Units</th><th scope="col" style="padding: 10px 8px; font-weight: 600; text-align: right;">Conversions</th><th scope="col" style="padding: 10px 8px; font-weight: 600; text-align: right;">Rate</th><th scope="col" style="padding: 10px 8px; font-weight: 600; text-align: right;">Effect vs control</th><th scope="col" style="padding: 10px 18px; font-weight: 600;">Always-valid 95% interval</th>
+</tr></thead>
+<tbody>
+<tr style="border-top: 1px solid #E4E4DE;"><td style="padding: 12px 18px; font-weight: 600;">Control: "Buy now"</td><td style="text-align: right;">6,104</td><td style="text-align: right;">611</td><td style="text-align: right;">10.0%</td><td style="text-align: right; color: #565B66;">—</td><td style="padding: 12px 18px; color: #565B66;">—</td></tr>
+<tr style="border-top: 1px solid #E4E4DE;"><td style="padding: 12px 18px; font-weight: 600;">Treatment: "Get it today"</td><td style="text-align: right;">6,089</td><td style="text-align: right;">737</td><td style="text-align: right;">12.1%</td><td style="text-align: right; font-weight: 600; color: #1D4F91;">+2.1 pts</td><td style="padding: 12px 18px;">+0.3 to +3.9 pts</td></tr>
+</tbody>
+</table>
+</section>
+
+<section aria-labelledby="looks" style="background: #FFFFFF; border: 1px solid #D9D9D2; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+<h2 id="looks" style="margin: 0; font-size: 17px;">The interval, every day you looked</h2>
+<p style="margin: 0; font-size: 14px; color: #3E434D;">The band is the always-valid interval for the effect. It narrows as data arrives. The test calls a winner only once the whole band clears zero, so checking daily never inflates false wins.</p>
+<svg viewBox="0 0 720 240" role="img" aria-label="Effect interval by day: about minus 4.6 to plus 8.6 points on day 1, narrowing to plus 0.3 to plus 3.9 points by day 14; the whole interval first clears zero on day 11." style="width: 100%; height: auto; max-width: 900px;">
+<line x1="56" y1="{{zeroY}}" x2="700" y2="{{zeroY}}" stroke="#16181D" stroke-width="1.5"/>
+<text x="48" y="{{zeroYText}}" text-anchor="end" font-size="12" fill="#3E434D" font-family="Inter, sans-serif">0</text>
+<text x="48" y="28" text-anchor="end" font-size="12" fill="#3E434D" font-family="Inter, sans-serif">+9 pts</text>
+<text x="48" y="220" text-anchor="end" font-size="12" fill="#3E434D" font-family="Inter, sans-serif">−5</text>
+<polygon points="{{band}}" fill="#1D4F91" fill-opacity="0.16" stroke="none"/>
+<polyline points="{{upper}}" fill="none" stroke="#1D4F91" stroke-width="1.5"/>
+<polyline points="{{lower}}" fill="none" stroke="#1D4F91" stroke-width="1.5"/>
+<polyline points="{{mid}}" fill="none" stroke="#1D4F91" stroke-width="2.5"/>
+<line x1="{{clearX}}" y1="20" x2="{{clearX}}" y2="216" stroke="#565B66" stroke-dasharray="4 4"/>
+<text x="{{clearXText}}" y="34" font-size="12" fill="#16181D" font-family="Inter, sans-serif">Day 11: band clears zero → Ship</text>
+<sc-for list="{{ticks}}" as="t" hint-placeholder-count="14"><text x="{{t.x}}" y="236" text-anchor="middle" font-size="11" fill="#3E434D" font-family="Inter, sans-serif">{{t.label}}</text></sc-for>
+</svg>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 16px;">
+<section aria-labelledby="gr" style="flex: 1 1 420px; background: #FFFFFF; border: 1px solid #D9D9D2; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;">
+<h2 id="gr" style="margin: 0; font-size: 17px;">Guardrails</h2>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><span>Refund rate</span><span style="color: #1D4F91; font-weight: 600;">✓ Held · 2.0% vs 2.1%</span></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><span>Page load (p75)</span><span style="color: #1D4F91; font-weight: 600;">✓ Held · no change</span></div>
+</section>
+<section aria-labelledby="srm" style="flex: 1 1 420px; background: #FFFFFF; border: 1px solid #D9D9D2; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;">
+<h2 id="srm" style="margin: 0; font-size: 17px;">Sample-ratio check</h2>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><span>Split 50 / 50, observed 50.1 / 49.9</span><span style="color: #1D4F91; font-weight: 600;">✓ Passed</span></div>
+<span style="font-size: 13px; color: #565B66;">Checkable from 9,835 units (enough to catch an 8% exposure loss with 80% power). This test has 12,193.</span>
+</section>
+</div>
+<p style="margin: 0; font-size: 13px; color: #565B66;">Fixed-horizon p (reference only, not a decision): [p]. Planned sample: 2× the fixed-horizon size per arm.</p>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const x = (d) => 56 + (d - 1) * (644 / 13);
+    const y = (v) => 24 + (9 - v) * (192 / 14);
+    const center = [2.0, 2.6, 1.6, 2.3, 2.0, 2.4, 1.9, 2.2, 2.1, 2.0, 2.2, 2.1, 2.1, 2.1];
+    const half = center.map((c, i) => 6.6 / Math.sqrt(i + 1));
+    const up = center.map((c, i) => [x(i + 1), y(c + half[i])]);
+    const lo = center.map((c, i) => [x(i + 1), y(c - half[i])]);
+    const md = center.map((c, i) => [x(i + 1), y(c)]);
+    const pts = (a) => a.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+    const ticks = center.map((c, i) => ({ x: x(i + 1).toFixed(1), label: 'D' + (i + 1) }));
+    return {
+      upper: pts(up), lower: pts(lo), mid: pts(md),
+      band: pts(up.concat(lo.slice().reverse())),
+      zeroY: y(0).toFixed(1), zeroYText: (y(0) + 4).toFixed(1),
+      clearX: x(11).toFixed(1), clearXText: (x(11) + 6).toFixed(1),
+      ticks
+    };
+  }
+}
+</script>
+</body>
+</html>

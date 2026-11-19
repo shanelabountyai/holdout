@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Install snippet</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@600;700&amp;display=swap">
+<style>
+body{margin:0;background:#F7F7F4}
+a{color:#0F5E63}a:hover{color:#0A4347}
+</style>
+</helmet>
+<div style="min-height: 100%; background: #F7F7F4; color: #16181D; font-family: Inter, system-ui, sans-serif; font-size: 15px; line-height: 1.5;">
+<header style="background: #FFFFFF; border-bottom: 1px solid #D9D9D2;">
+<div style="max-width: 1160px; margin: 0 auto; padding: 12px 24px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center;">
+<span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px;">Holdout</span>
+<nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 18px; font-size: 14px;"><a href="List.dc.html" style="color: #3E434D; text-decoration: none; padding: 10px 0;">Experiments</a><a href="New.dc.html" style="color: #3E434D; text-decoration: none; padding: 10px 0;">New experiment</a><a href="#" aria-current="page" style="font-weight: 600; color: #16181D; text-decoration: none; border-bottom: 2px solid #0F5E63; padding: 10px 0;">Install snippet</a></nav>
+</div>
+</header>
+<main style="max-width: 1160px; margin: 0 auto; padding: 24px 24px 56px; display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700;">Install the snippet</h1>
+<p style="margin: 0; max-width: 72ch; color: #3E434D;">Your site's server holds the API key; the browser never does. The server renders the running experiments into the page, the snippet assigns each visitor with the same function the server checks exposures with, and your server relays its events to Holdout.</p>
+</div>
+
+<ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 16px;">
+<li style="background: #FFFFFF; border: 1px solid #D9D9D2; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 8px;">
+<h2 style="margin: 0; font-size: 17px;"><span style="color: #565B66;">1</span> · Create an API key with <code>read</code> and <code>ingest</code></h2>
+<span style="font-size: 14px; color: #3E434D;">Owners and admins do this in Settings → API keys. Keep the key on your server.</span>
+<a href="#" style="align-self: flex-start; min-height: 44px; display: inline-flex; align-items: center; font-weight: 600;">Open API keys</a>
+<span style="font-size: 14px; color: #3E434D; background: #F0F0EB; border-radius: 10px; padding: 10px 12px;">Members see: "An owner or admin creates API keys."</span>
+</li>
+<li style="background: #FFFFFF; border: 1px solid #D9D9D2; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 8px;">
+<h2 style="margin: 0; font-size: 17px;"><span style="color: #565B66;">2</span> · On your server: load the config, then relay events</h2>
+<pre style="margin: 0; background: #16181D; color: #F4F4EF; border-radius: 10px; padding: 14px; overflow-x: auto; font-size: 13px; line-height: 1.6;"><code>import { HoldoutServer } from './holdout/server';
+const holdout = new HoldoutServer({ baseUrl: '{{origin}}', apiKey: process.env.HOLDOUT_KEY });
+await holdout.refresh();               // GET /api/v1/experiments (read)
+const experiments = holdout.experiments(); // render into the page for the snippet
+// in your relay route (same site as the page), with the visitor id from your own cookie:
+holdout.enqueue(events);
+await holdout.flush();                 // POST /api/v1/ingest (ingest), up to 500 events</code></pre>
+</li>
+<li style="background: #FFFFFF; border: 1px solid #D9D9D2; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 8px;">
+<h2 style="margin: 0; font-size: 17px;"><span style="color: #565B66;">3</span> · In the page: the snippet</h2>
+<pre style="margin: 0; background: #16181D; color: #F4F4EF; border-radius: 10px; padding: 14px; overflow-x: auto; font-size: 13px; line-height: 1.6;"><code>&lt;script src="/holdout.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  Holdout.init({ experiments: /* rendered by your server */, unitId: visitorId, endpoint: '/collect' });
+  const v = Holdout.variant('{{key}}');   // logs one exposure
+  // on purchase: Holdout.track('{{event}}');
+&lt;/script&gt;</code></pre>
+<span style="font-size: 13px; color: #565B66;"><code>holdout.js</code> is built from the repo by <code>npm run sdk:build</code> ([n] bytes).</span>
+</li>
+</ol>
+
+<section aria-labelledby="running" style="background: #FFFFFF; border: 1px solid #D9D9D2; border-radius: 14px; overflow-x: auto;">
+<h2 id="running" style="margin: 0; padding: 14px 18px; font-size: 17px; border-bottom: 1px solid #E4E4DE;">Keys to use: running experiments</h2>
+<table style="width: 100%; min-width: 560px; border-collapse: collapse;">
+<thead><tr style="background: #F0F0EB; text-align: left; font-size: 13px; color: #3E434D;"><th scope="col" style="padding: 10px 18px; font-weight: 600;">Experiment</th><th scope="col" style="padding: 10px 8px; font-weight: 600;">Key</th><th scope="col" style="padding: 10px 8px; font-weight: 600;">Variants, in bucket order</th><th scope="col" style="padding: 10px 18px; font-weight: 600;">Metric event</th></tr></thead>
+<tbody>
+<tr style="border-top: 1px solid #E4E4DE;"><td style="padding: 12px 18px; font-weight: 600;">[name]</td><td style="padding: 12px 8px;"><code>[key]</code></td><td style="padding: 12px 8px;"><code>[control]</code> [w]% · <code>[treatment]</code> [w]%</td><td style="padding: 12px 18px;"><code>[event]</code></td></tr>
+</tbody>
+</table>
+<p style="margin: 0; padding: 12px 18px; font-size: 14px; color: #3E434D; border-top: 1px solid #E4E4DE;">Empty: "Nothing is running. Drafts are not served; start one from its page."</p>
+</section>
+
+<section aria-labelledby="demo" style="background: #FFFFFF; border: 1px dashed #8A8F99; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 8px;">
+<h2 id="demo" style="margin: 0; font-size: 17px;">Try it on the local demo site</h2>
+<span style="font-size: 14px; color: #3E434D;">A fictional coffee shop on your machine, nothing deployed. After <code>npm run seed:demo</code>:</span>
+<pre style="margin: 0; background: #F0F0EB; color: #16181D; border-radius: 10px; padding: 12px; overflow-x: auto; font-size: 13px;"><code>npm run demo:setup   # starts checkout-button in the demo org, writes a key to .env.demo-site
+npm run demo:site    # http://localhost:8101</code></pre>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1300}}'>
+class Component extends DCLogic {
+  renderVals() { return { origin: '[holdout origin]', key: '[experiment key]', event: '[metric event]' }; }
+}
+</script>
+</body>
+</html>

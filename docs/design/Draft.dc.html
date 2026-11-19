@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Draft experiment</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@600;700&amp;display=swap">
+<style>
+body{margin:0;background:#F7F7F4}
+a{color:#0F5E63}a:hover{color:#0A4347}
+</style>
+</helmet>
+<div style="min-height: 100%; background: #F7F7F4; color: #16181D; font-family: Inter, system-ui, sans-serif; font-size: 15px; line-height: 1.5;">
+<header style="background: #FFFFFF; border-bottom: 1px solid #D9D9D2;">
+<div style="max-width: 1160px; margin: 0 auto; padding: 12px 24px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center;">
+<span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px;">Holdout</span>
+<nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 18px; font-size: 14px;"><a href="List.dc.html" style="font-weight: 600; color: #16181D; text-decoration: none; border-bottom: 2px solid #0F5E63; padding: 10px 0;">Experiments</a><a href="New.dc.html" style="color: #3E434D; text-decoration: none; padding: 10px 0;">New experiment</a><a href="Install.dc.html" style="color: #3E434D; text-decoration: none; padding: 10px 0;">Install snippet</a></nav>
+</div>
+</header>
+<main style="max-width: 1160px; margin: 0 auto; padding: 24px 24px 56px; display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<span style="font-size: 13px; color: #565B66;"><code>[key]</code> · Draft · [n] arms · sample data</span>
+<h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700;">[Experiment name]</h1>
+</div>
+
+<section aria-labelledby="dec" style="background: #FFFFFF; color: #16181D; border: 1px solid #8A8F99; border-radius: 14px; padding: 20px 24px; display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center; justify-content: space-between;">
+<div style="display: flex; flex-direction: column; gap: 4px; flex: 1 1 420px;">
+<span id="dec" style="font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;">Status</span>
+<span style="font-family: 'Space Grotesk', sans-serif; font-size: 30px; font-weight: 700; line-height: 1.1;"><span aria-hidden="true">–</span> Draft: not started</span>
+<span>Nothing receives traffic until an owner or admin starts it. Starting freezes the variants, weights, their order, the metrics and the plan.</span>
+</div>
+<button type="button" style="min-height: 48px; padding: 0 18px; border-radius: 10px; border: none; background: #1D4F91; color: #FFFFFF; font: inherit; font-weight: 600;">Start experiment</button>
+<span style="flex-basis: 100%; font-size: 14px; color: #3E434D;">Members see instead: "An owner or admin starts the experiment."</span>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 16px;">
+<section aria-labelledby="plan" style="flex: 1 1 420px; background: #16181D; color: #F4F4EF; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 8px;">
+<h2 id="plan" style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #C9CBD1;">Planned sample</h2>
+<span style="font-family: 'Space Grotesk', sans-serif; font-size: 40px; font-weight: 700; line-height: 1;">[n]</span>
+<span>units per arm · [n] in total</span>
+<span style="font-size: 14px; color: #C9CBD1;">2× the fixed-horizon size ([n] per arm). Primary metric <code>[event]</code>, baseline [b]%, smallest lift +[m] pts, 95% confidence, 80% power.</span>
+</section>
+<section aria-labelledby="design" style="flex: 1 1 420px; background: #FFFFFF; border: 1px solid #D9D9D2; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;">
+<h2 id="design" style="margin: 0; font-size: 17px;">Design</h2>
+<table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+<thead><tr style="text-align: left; color: #3E434D;"><th scope="col" style="padding: 6px 0; font-weight: 600;">Order</th><th scope="col" style="padding: 6px 8px; font-weight: 600;">Variant</th><th scope="col" style="padding: 6px 0; font-weight: 600; text-align: right;">Weight</th></tr></thead>
+<tbody>
+<tr style="border-top: 1px solid #E4E4DE;"><td style="padding: 6px 0;">1</td><td style="padding: 6px 8px;">[Control] <code>[control]</code></td><td style="padding: 6px 0; text-align: right;">[w]%</td></tr>
+<tr style="border-top: 1px solid #E4E4DE;"><td style="padding: 6px 0;">2</td><td style="padding: 6px 8px;">[Treatment] <code>[treatment]</code></td><td style="padding: 6px 0; text-align: right;">[w]%</td></tr>
+</tbody>
+</table>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;"><span style="font-weight: 600;">Guardrails</span><span style="border: 1px solid #8A8F99; border-radius: 999px; padding: 4px 12px;"><code>[event]</code> · rate</span></div>
+<a href="New.dc.html" style="align-self: flex-start; min-height: 44px; display: inline-flex; align-items: center; font-weight: 600;">Edit draft</a>
+</section>
+</div>
+
+<section aria-labelledby="hist" style="background: #FFFFFF; border: 1px solid #D9D9D2; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px;">
+<h2 id="hist" style="margin: 0; font-size: 17px;">History</h2>
+<ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 14px;">
+<li><time>[YYYY-MM-DD HH:MM] UTC</time> · Created by [email]</li>
+</ol>
+<span style="font-size: 13px; color: #565B66;">Running and stopped experiments show the same Design and History cards under the readout; their name and description stay editable (Rename), nothing else.</span>
+</section>
+
+<section aria-labelledby="danger" style="background: #FFFFFF; border: 1px solid #D9D9D2; border-radius: 14px; padding: 16px 18px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between;">
+<div style="display: flex; flex-direction: column; gap: 2px;"><h2 id="danger" style="margin: 0; font-size: 17px;">Delete draft</h2><span style="font-size: 14px; color: #3E434D;">Only drafts can be deleted. A started experiment stays on record.</span></div>
+<button type="button" style="min-height: 44px; padding: 0 16px; border-radius: 10px; border: 2px solid #9A2E0B; background: #FFFFFF; color: #7A2509; font: inherit; font-weight: 600;">Delete draft</button>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

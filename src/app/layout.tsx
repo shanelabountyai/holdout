@@ -1,5 +1,5 @@
 // public: the root shell; renders no data
-export const metadata = { title: 'SaaS Foundation' };
+export const metadata = { title: 'Holdout' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
